@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "617177979816",
+    "firebase_url": "https://temicommunication-c3fa0-default-rtdb.firebaseio.com",
+    "project_id": "temicommunication-c3fa0",
+    "storage_bucket": "temicommunication-c3fa0.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:617177979816:android:f795b8e03af62ed2425b9d",
+        "android_client_info": {
+          "package_name": "com.example.temicommunication"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyATEthrZ5Pm5_lcLeRwdQeFgliAg4qkpt8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
