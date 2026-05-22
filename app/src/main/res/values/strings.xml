@@ -1,0 +1,12 @@
+<resources>
+    <string name="app_name">temi_test</string>
+    <string name="pose_ready">버튼을 눌러 Pose를 테스트하세요</string>
+    <string name="pose_running">Pose 실행 중...</string>
+    <string name="pose_success">Pose 실행 성공\n감지된 사람 수: %1$d</string>
+    <string name="pose_count">감지된 사람 수: %1$d</string>
+    <string name="pose_failed">Pose 실행 실패\n%1$s</string>
+    <string name="pose_button">Pose 실행</string>
+    <string name="pose_camera_starting">카메라 시작 중...</string>
+    <string name="pose_camera_permission">카메라 권한이 필요합니다.</string>
+    <string name="pose_camera_detected">감지된 사람 수: %1$d</string>
+</resources>
