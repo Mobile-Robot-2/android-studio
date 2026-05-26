@@ -2,17 +2,18 @@ package org.techtown.temi_test;
 
 import android.Manifest;
 import android.content.pm.PackageManager;
+import android.graphics.ImageFormat;
+import android.graphics.Rect;
+import android.graphics.YuvImage;
 import android.media.Image;
 import android.os.Bundle;
 import android.util.Size;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
-import androidx.annotation.OptIn;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.camera.core.CameraInfoUnavailableException;
 import androidx.camera.core.CameraSelector;
-import androidx.camera.core.ExperimentalGetImage;
 import androidx.camera.core.ImageAnalysis;
 import androidx.camera.core.ImageProxy;
 import androidx.camera.core.Preview;
@@ -22,27 +23,32 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
 import com.google.common.util.concurrent.ListenableFuture;
-import com.google.mlkit.vision.common.InputImage;
-import com.google.mlkit.vision.pose.Pose;
-import com.google.mlkit.vision.pose.PoseDetection;
-import com.google.mlkit.vision.pose.PoseDetector;
-import com.google.mlkit.vision.pose.defaults.PoseDetectorOptions;
 
+import java.io.ByteArrayOutputStream;
+import java.io.OutputStream;
+import java.net.Socket;
+import java.nio.ByteBuffer;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+
+//import kotlin.OptIn;
 
 public class MainActivity extends AppCompatActivity {
 
     private static final int CAMERA_PERMISSION_REQUEST_CODE = 1001;
 
+    // 반드시 네 노트북 IP로 변경
+    private static final String SERVER_IP = "192.168.0.10";
+    private static final int SERVER_PORT = 9999;
+
     private PreviewView previewView;
-    private PoseOverlayView poseOverlayView;
     private TextView textStatus;
     private ExecutorService cameraExecutor;
-    private PoseDetector poseDetector;
     private boolean mirrorOverlay = true;
-    private boolean isProcessingFrame = false;
+
+    private Socket socket;
+    private OutputStream outputStream;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -50,11 +56,10 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         previewView = findViewById(R.id.previewView);
-        poseOverlayView = findViewById(R.id.poseOverlayView);
         textStatus = findViewById(R.id.textStatus);
         cameraExecutor = Executors.newSingleThreadExecutor();
 
-        setupPoseDetector();
+        connectToPythonServer();
 
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
                 == PackageManager.PERMISSION_GRANTED) {
@@ -68,12 +73,20 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void setupPoseDetector() {
-        PoseDetectorOptions options = new PoseDetectorOptions.Builder()
-                .setDetectorMode(PoseDetectorOptions.STREAM_MODE)
-                .build();
-        poseDetector = PoseDetection.getClient(options);
+    private void connectToPythonServer() {
+        new Thread(() -> {
+            try {
+                socket = new Socket(SERVER_IP, SERVER_PORT);
+                outputStream = socket.getOutputStream();
+                runOnUiThread(() ->
+                        textStatus.setText("Connected to Python server"));
+            } catch (Exception e) {
+                runOnUiThread(() ->
+                        textStatus.setText( "Socket connection failed\n" + e.getMessage() ));
+            }
+        }).start();
     }
+
 
     @Override
     public void onRequestPermissionsResult(
@@ -137,59 +150,61 @@ public class MainActivity extends AppCompatActivity {
         return CameraSelector.DEFAULT_BACK_CAMERA;
     }
 
-    @OptIn(markerClass = ExperimentalGetImage.class)
+//    @OptIn(markerClass = ExperimentalGetImage.class)
     private void analyzeImage(ImageProxy imageProxy) {
-        if (isProcessingFrame) {
-            imageProxy.close();
-            return;
-        }
 
         Image mediaImage = imageProxy.getImage();
+
         if (mediaImage == null) {
             imageProxy.close();
             return;
         }
 
-        isProcessingFrame = true;
-        int rotationDegrees = imageProxy.getImageInfo().getRotationDegrees();
-        InputImage image = InputImage.fromMediaImage(mediaImage, rotationDegrees);
-
-        poseDetector.process(image)
-                .addOnSuccessListener(pose -> handlePoseResult(pose, imageProxy))
-                .addOnFailureListener(e ->
-                        runOnUiThread(() -> textStatus.setText(getString(R.string.pose_failed, e.getMessage()))))
-                .addOnCompleteListener(task -> {
-                    isProcessingFrame = false;
-                    imageProxy.close();
-                });
-    }
-
-    private void handlePoseResult(Pose pose, ImageProxy imageProxy) {
-        int imageWidth = imageProxy.getWidth();
-        int imageHeight = imageProxy.getHeight();
-        int rotationDegrees = imageProxy.getImageInfo().getRotationDegrees();
-        if (rotationDegrees == 90 || rotationDegrees == 270) {
-            imageWidth = imageProxy.getHeight();
-            imageHeight = imageProxy.getWidth();
+        try {
+            byte[] nv21 = imageProxyToNV21(imageProxy);
+            YuvImage yuvImage = new YuvImage( nv21, ImageFormat.NV21, imageProxy.getWidth(), imageProxy.getHeight(), null );
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            yuvImage.compressToJpeg( new Rect( 0, 0, imageProxy.getWidth(), imageProxy.getHeight() ), 60, out );
+            byte[] jpegBytes = out.toByteArray();
+            if (outputStream != null) {
+                ByteBuffer buffer = ByteBuffer.allocate(4);
+                buffer.putInt(jpegBytes.length);
+                outputStream.write(buffer.array());
+                outputStream.write(jpegBytes); outputStream.flush();
+            }
+            runOnUiThread(() -> {
+                textStatus.setText( "Sending frame\n" + imageProxy.getWidth() + " x " + imageProxy.getHeight() );
+            });
         }
 
-        int finalImageWidth = imageWidth;
-        int finalImageHeight = imageHeight;
-        int detectedPeople = pose.getAllPoseLandmarks().isEmpty() ? 0 : 1;
-
-        runOnUiThread(() -> {
-            poseOverlayView.setPose(pose, finalImageWidth, finalImageHeight, mirrorOverlay);
-            textStatus.setText(getString(R.string.pose_camera_detected, detectedPeople));
-        });
+        catch (Exception e) {
+            runOnUiThread(() -> textStatus.setText( "Send failed\n" + e.getMessage() ));
+        } imageProxy.close();
     }
+
+    private byte[] imageProxyToNV21(ImageProxy image) { ByteBuffer yBuffer = image.getPlanes()[0].getBuffer();
+    ByteBuffer uBuffer = image.getPlanes()[1].getBuffer();
+    ByteBuffer vBuffer = image.getPlanes()[2].getBuffer();
+    int ySize = yBuffer.remaining();
+    int uSize = uBuffer.remaining();
+    int vSize = vBuffer.remaining();
+    byte[] nv21 = new byte[ySize + uSize + vSize];
+    yBuffer.get(nv21, 0, ySize); vBuffer.get(nv21, ySize, vSize);
+    uBuffer.get(nv21, ySize + vSize, uSize); return nv21; }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
 
-        if (poseDetector != null) {
-            poseDetector.close();
-            poseDetector = null;
+        try {
+            if (outputStream != null) {
+                outputStream.close();
+            }
+            if (socket != null) {
+                socket.close();
+            } }
+
+        catch (Exception ignored) {
         }
         if (cameraExecutor != null) {
             cameraExecutor.shutdown();
