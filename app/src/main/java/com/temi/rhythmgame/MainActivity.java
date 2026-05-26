@@ -5,8 +5,6 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
 import android.util.Log;
 import android.view.View;
 import android.widget.Toast;
@@ -29,13 +27,8 @@ public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = "MainActivity";
     private static final int REQUEST_CAMERA_PERMISSION = 100;
-    private static final int GAME_DURATION_MS = 60_000;
-
     private FillVideoView videoView;
     private PreviewView previewView;
-
-    private final Handler handler = new Handler(Looper.getMainLooper());
-    private Runnable gameEndRunnable;
 
     // ───────────────── 생명주기 ──────────────────────────────────────────
 
@@ -49,7 +42,6 @@ public class MainActivity extends AppCompatActivity {
         previewView = findViewById(R.id.previewView);
 
         setupVideo();
-        setupGameTimer();
 
         if (hasCameraPermission()) {
             startCamera();
@@ -68,7 +60,6 @@ public class MainActivity extends AppCompatActivity {
     protected void onDestroy() {
         super.onDestroy();
         if (videoView != null && videoView.isPlaying()) videoView.stopPlayback();
-        if (gameEndRunnable != null) handler.removeCallbacks(gameEndRunnable);
     }
 
     // ───────────────── 전체화면 ──────────────────────────────────────────
@@ -91,9 +82,12 @@ public class MainActivity extends AppCompatActivity {
                 "android.resource://" + getPackageName() + "/" + R.raw.guide_video);
         videoView.setVideoURI(videoUri);
         videoView.setOnPreparedListener(mp -> {
-            mp.setLooping(true);
             videoView.start();
             Log.d(TAG, "영상 재생 시작");
+        });
+        videoView.setOnCompletionListener(mp -> {
+            Log.d(TAG, "영상 종료 → ResultActivity 이동");
+            goToResult();
         });
         videoView.setOnErrorListener((mp, what, extra) -> {
             Log.e(TAG, "영상 오류 what=" + what + " extra=" + extra);
@@ -101,18 +95,12 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    // ───────────────── 게임 타이머 ───────────────────────────────────────
-
-    private void setupGameTimer() {
-        gameEndRunnable = () -> {
-            if (videoView != null && videoView.isPlaying()) videoView.stopPlayback();
-            Intent intent = new Intent(MainActivity.this, ResultActivity.class);
-            intent.putExtra("score", 0);
-            intent.putExtra("maxScore", 10);
-            startActivity(intent);
-            finish();
-        };
-        handler.postDelayed(gameEndRunnable, GAME_DURATION_MS);
+    private void goToResult() {
+        Intent intent = new Intent(MainActivity.this, ResultActivity.class);
+        intent.putExtra("score", 0);
+        intent.putExtra("maxScore", 10);
+        startActivity(intent);
+        finish();
     }
 
     // ───────────────── 카메라 ────────────────────────────────────────────

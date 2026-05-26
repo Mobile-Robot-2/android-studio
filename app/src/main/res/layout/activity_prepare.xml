@@ -20,9 +20,9 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintBottom_toTopOf="@+id/tvCountdown"
         app:layout_constraintVertical_chainStyle="packed"
-        android:layout_marginBottom="24dp"/>
+        android:layout_marginBottom="16dp" />
 
-    <!-- 카운트다운 숫자 (크고 눈에 띄는 노란색) -->
+    <!-- 카운트다운 숫자 -->
     <TextView
         android:id="@+id/tvCountdown"
         android:layout_width="wrap_content"
@@ -34,20 +34,22 @@
         app:layout_constraintTop_toBottomOf="@+id/tvTitle"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintBottom_toTopOf="@+id/tvMessage"
-        android:layout_marginBottom="24dp"/>
+        app:layout_constraintBottom_toTopOf="@+id/tvCheckLog"
+        android:layout_marginBottom="16dp" />
 
-    <!-- 안내 메시지 -->
+    <!-- 체크 결과 로그 (항목이 추가될수록 줄이 늘어남) -->
     <TextView
-        android:id="@+id/tvMessage"
+        android:id="@+id/tvCheckLog"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="카메라 연결 확인 중..."
-        android:textSize="28sp"
+        android:text=""
+        android:textSize="22sp"
         android:textColor="@color/text_gray"
+        android:lineSpacingExtra="6dp"
+        android:gravity="start"
         app:layout_constraintTop_toBottomOf="@+id/tvCountdown"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent"/>
+        app:layout_constraintBottom_toBottomOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
