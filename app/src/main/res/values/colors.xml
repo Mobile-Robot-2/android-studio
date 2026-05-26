@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- 기존 색상 -->
     <color name="purple_200">#FFBB86FC</color>
     <color name="purple_500">#FF6200EE</color>
     <color name="purple_700">#FF3700B3</color>
@@ -7,4 +8,11 @@
     <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+
+    <!-- 리듬게임 시니어 친화적 색상 -->
+    <color name="bg_dark">#FF1A1A2E</color>          <!-- 배경: 진한 남색 (순수 검정보다 눈에 편함) -->
+    <color name="primary_blue">#FF1565C0</color>      <!-- 주 색상: 선명한 파란색 (버튼용) -->
+    <color name="accent_yellow">#FFFDD835</color>     <!-- 강조 색상: 노란색 (점수, 카운트다운) -->
+    <color name="text_gray">#FFB0BEC5</color>         <!-- 보조 텍스트: 회색 -->
+    <color name="btn_end">#FFC62828</color>           <!-- 종료 버튼: 빨간색 -->
 </resources>

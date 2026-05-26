@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    ResultActivity 레이아웃 - 결과 화면
+    초기 10초: 로딩 화면 (tvLoading + progressBar)
+    10초 후  : 결과 화면 (tvScore + tvFeedback + btnRestart)
+-->
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg_dark">
+
+    <!-- ─── 로딩 화면 (초기 10초 표시) ─── -->
+
+    <TextView
+        android:id="@+id/tvLoading"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="결과를 계산하고 있어요!"
+        android:textSize="36sp"
+        android:textColor="@color/white"
+        android:textStyle="bold"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintBottom_toTopOf="@+id/progressBar"
+        app:layout_constraintVertical_chainStyle="packed"
+        android:layout_marginBottom="40dp"/>
+
+    <ProgressBar
+        android:id="@+id/progressBar"
+        android:layout_width="120dp"
+        android:layout_height="120dp"
+        app:layout_constraintTop_toBottomOf="@+id/tvLoading"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"/>
+
+    <!-- ─── 결과 화면 (10초 후 표시) ─── -->
+
+    <!-- 최종 점수 -->
+    <TextView
+        android:id="@+id/tvScore"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="최종 점수: 7/10"
+        android:textSize="52sp"
+        android:textColor="@color/accent_yellow"
+        android:textStyle="bold"
+        android:visibility="gone"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintBottom_toTopOf="@+id/tvFeedback"
+        app:layout_constraintVertical_chainStyle="packed"
+        android:layout_marginBottom="32dp"/>
+
+    <!-- LLM 피드백 자리 (Step 3에서 실제 피드백으로 대체 예정) -->
+    <TextView
+        android:id="@+id/tvFeedback"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="[LLM 피드백 자리]"
+        android:textSize="28sp"
+        android:textColor="@color/text_gray"
+        android:visibility="gone"
+        app:layout_constraintTop_toBottomOf="@+id/tvScore"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintBottom_toTopOf="@+id/btnRestart"
+        android:layout_marginBottom="40dp"/>
+
+    <!-- 다시 하기 버튼 -->
+    <Button
+        android:id="@+id/btnRestart"
+        android:layout_width="300dp"
+        android:layout_height="90dp"
+        android:text="다시 하기"
+        android:textSize="30sp"
+        android:textColor="@color/white"
+        android:textStyle="bold"
+        android:backgroundTint="@color/primary_blue"
+        android:visibility="gone"
+        app:layout_constraintTop_toBottomOf="@+id/tvFeedback"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginTop="40dp"
+        android:layout_marginBottom="48dp"/>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

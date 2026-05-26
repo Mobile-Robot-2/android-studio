@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 시니어 친화적: 큰 텍스트 사이즈 -->
+    <dimen name="text_small">24sp</dimen>
+    <dimen name="text_medium">28sp</dimen>
+    <dimen name="text_large">36sp</dimen>
+    <dimen name="text_xlarge">48sp</dimen>
+    <dimen name="text_countdown">96sp</dimen>
+
+    <!-- 버튼 크기 -->
+    <dimen name="btn_height_normal">80dp</dimen>
+    <dimen name="btn_height_large">120dp</dimen>
+    <dimen name="btn_width_main">400dp</dimen>
+</resources>

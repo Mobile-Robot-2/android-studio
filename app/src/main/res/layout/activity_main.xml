@@ -1,56 +1,39 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".MainActivity">
+    android:orientation="horizontal"
+    android:background="@color/bg_dark">
 
-    <androidx.appcompat.widget.SwitchCompat
-        android:id="@+id/switchLed"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:scaleX="2"
-        android:scaleY="2"
-        android:text="LED"
-        app:layout_constraintBottom_toTopOf="@+id/textDistance"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"/>
+    <!-- 왼쪽 50%: 가이드 영상 -->
+    <FrameLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:background="@color/black">
 
-    <TextView
-        android:id="@+id/textDistance"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:text="Distance:"
-        android:textColor="@color/black"
-        android:textSize="32sp"/>
+        <com.temi.rhythmgame.FillVideoView
+            android:id="@+id/videoView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
 
-    <Button
-        android:id="@+id/buttonDistance"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Get Data"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintVertical_bias="0.7"/>
+    </FrameLayout>
 
-    <TextView
-        android:id="@+id/textDistance2"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Distance:"
-        android:textColor="@color/black"
-        android:textSize="32sp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/textDistance" />
+    <!-- 중앙 구분선 -->
+    <View
+        android:layout_width="3dp"
+        android:layout_height="match_parent"
+        android:background="@color/accent_yellow" />
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+    <!-- 오른쪽 50%: 카메라 프리뷰 -->
+    <androidx.camera.view.PreviewView
+        android:id="@+id/previewView"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        app:implementationMode="compatible"
+        app:scaleType="fillCenter" />
+
+</LinearLayout>

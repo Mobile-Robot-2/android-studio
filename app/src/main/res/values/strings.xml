@@ -1,3 +1,11 @@
 <resources>
-    <string name="app_name">TemiCommunication</string>
+    <string name="app_name">리듬 체조 게임</string>
+    <string name="btn_start">리듬게임 시작!</string>
+    <string name="preparing">게임을 준비하고 있어요!</string>
+    <string name="msg_camera_check">카메라 연결 확인 중...</string>
+    <string name="msg_sensor_check">센서 연결 확인 중...</string>
+    <string name="msg_sensor_position">센서 위치를 확인해주세요</string>
+    <string name="calculating">결과를 계산하고 있어요!</string>
+    <string name="feedback_placeholder">[LLM 피드백 자리]</string>
+    <string name="btn_restart">다시 하기</string>
 </resources>
