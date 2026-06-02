@@ -1,5 +1,6 @@
 plugins {
     id 'com.android.application'
+    id 'com.google.gms.google-services'
 }
 
 // Kotlin 1.8+ 에서 stdlib-jdk7/jdk8 은 메인 stdlib 에 통합됨
