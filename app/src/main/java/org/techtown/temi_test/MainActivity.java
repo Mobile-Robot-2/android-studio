@@ -25,30 +25,35 @@ import androidx.core.content.ContextCompat;
 import com.google.common.util.concurrent.ListenableFuture;
 
 import java.io.ByteArrayOutputStream;
-import java.io.OutputStream;
-import java.net.Socket;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.MediaType;
+import okhttp3.MultipartBody;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
 //import kotlin.OptIn;
 
 public class MainActivity extends AppCompatActivity {
 
+    private static final String SERVER_URL = "http://YOUR_FASTAPI_SERVER:8000/pose";
     private static final int CAMERA_PERMISSION_REQUEST_CODE = 1001;
-
-    // 반드시 네 노트북 IP로 변경
-    private static final String SERVER_IP = "192.168.0.10";
-    private static final int SERVER_PORT = 9999;
 
     private PreviewView previewView;
     private TextView textStatus;
     private ExecutorService cameraExecutor;
     private boolean mirrorOverlay = true;
+    private final OkHttpClient client = new OkHttpClient();
 
-    private Socket socket;
-    private OutputStream outputStream;
+    private long lastSendTime = 0;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -59,7 +64,6 @@ public class MainActivity extends AppCompatActivity {
         textStatus = findViewById(R.id.textStatus);
         cameraExecutor = Executors.newSingleThreadExecutor();
 
-        connectToPythonServer();
 
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
                 == PackageManager.PERMISSION_GRANTED) {
@@ -71,20 +75,6 @@ public class MainActivity extends AppCompatActivity {
                     CAMERA_PERMISSION_REQUEST_CODE
             );
         }
-    }
-
-    private void connectToPythonServer() {
-        new Thread(() -> {
-            try {
-                socket = new Socket(SERVER_IP, SERVER_PORT);
-                outputStream = socket.getOutputStream();
-                runOnUiThread(() ->
-                        textStatus.setText("Connected to Python server"));
-            } catch (Exception e) {
-                runOnUiThread(() ->
-                        textStatus.setText( "Socket connection failed\n" + e.getMessage() ));
-            }
-        }).start();
     }
 
 
@@ -160,26 +150,111 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
-        try {
-            byte[] nv21 = imageProxyToNV21(imageProxy);
-            YuvImage yuvImage = new YuvImage( nv21, ImageFormat.NV21, imageProxy.getWidth(), imageProxy.getHeight(), null );
-            ByteArrayOutputStream out = new ByteArrayOutputStream();
-            yuvImage.compressToJpeg( new Rect( 0, 0, imageProxy.getWidth(), imageProxy.getHeight() ), 60, out );
-            byte[] jpegBytes = out.toByteArray();
-            if (outputStream != null) {
-                ByteBuffer buffer = ByteBuffer.allocate(4);
-                buffer.putInt(jpegBytes.length);
-                outputStream.write(buffer.array());
-                outputStream.write(jpegBytes); outputStream.flush();
-            }
-            runOnUiThread(() -> {
-                textStatus.setText( "Sending frame\n" + imageProxy.getWidth() + " x " + imageProxy.getHeight() );
-            });
+        if (System.currentTimeMillis() - lastSendTime < 500) {
+            imageProxy.close();
+            return;
         }
 
-        catch (Exception e) {
-            runOnUiThread(() -> textStatus.setText( "Send failed\n" + e.getMessage() ));
-        } imageProxy.close();
+        lastSendTime = System.currentTimeMillis();
+
+        try {
+
+            byte[] nv21 = imageProxyToNV21(imageProxy);
+
+            YuvImage yuvImage = new YuvImage(
+                    nv21,
+                    ImageFormat.NV21,
+                    imageProxy.getWidth(),
+                    imageProxy.getHeight(),
+                    null
+            );
+
+            ByteArrayOutputStream out =
+                    new ByteArrayOutputStream();
+
+            yuvImage.compressToJpeg(
+                    new Rect(
+                            0,
+                            0,
+                            imageProxy.getWidth(),
+                            imageProxy.getHeight()
+                    ),
+                    60,
+                    out
+            );
+
+            byte[] jpegBytes = out.toByteArray();
+
+            sendImageToServer(jpegBytes);
+
+        } catch (Exception e) {
+
+            runOnUiThread(() ->
+                    textStatus.setText(
+                            "Image convert failed\n"
+                                    + e.getMessage()
+                    )
+            );
+
+        } finally {
+
+            imageProxy.close();
+        }
+    }
+
+    private void sendImageToServer(byte[] jpegBytes) {
+
+        RequestBody imageBody =
+                RequestBody.create(
+                        MediaType.parse("image/jpeg"),
+                        jpegBytes
+                );
+
+        MultipartBody requestBody =
+                new MultipartBody.Builder()
+                        .setType(MultipartBody.FORM)
+                        .addFormDataPart(
+                                "file",
+                                "frame.jpg",
+                                imageBody
+                        )
+                        .build();
+
+        Request request =
+                new Request.Builder()
+                        .url(SERVER_URL)
+                        .post(requestBody)
+                        .build();
+
+        client.newCall(request).enqueue(new Callback() {
+
+            @Override
+            public void onFailure(Call call, IOException e) {
+
+                runOnUiThread(() ->
+                        textStatus.setText(
+                                "Server connection failed\n"
+                                        + e.getMessage()
+                        )
+                );
+            }
+
+            @Override
+            public void onResponse(
+                    Call call,
+                    Response response
+            ) throws IOException {
+
+                String result = response.body().string();
+
+                runOnUiThread(() ->
+                        textStatus.setText(
+                                "Server Response\n"
+                                        + result
+                        )
+                );
+            }
+        });
     }
 
     private byte[] imageProxyToNV21(ImageProxy image) { ByteBuffer yBuffer = image.getPlanes()[0].getBuffer();
@@ -196,16 +271,6 @@ public class MainActivity extends AppCompatActivity {
     protected void onDestroy() {
         super.onDestroy();
 
-        try {
-            if (outputStream != null) {
-                outputStream.close();
-            }
-            if (socket != null) {
-                socket.close();
-            } }
-
-        catch (Exception ignored) {
-        }
         if (cameraExecutor != null) {
             cameraExecutor.shutdown();
         }
