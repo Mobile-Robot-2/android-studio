@@ -13,6 +13,7 @@ MODEL_PATH = BASE_DIR / "models" / "pose_landmarker_lite.task"
 
 CAMERA_INDEX = 0
 TARGET_COUNT = 5
+COUNT_COOLDOWN_SECONDS = 0.8
 TIME_LIMIT_SECONDS = 60
 
 ACTION_NAMES = ("LEFT_HAND_UP", "RIGHT_HAND_UP", "ARMS_OPEN")
@@ -85,16 +86,20 @@ def update_counts(
     detections: dict[str, bool],
     counts: dict[str, int],
     action_active: dict[str, bool],
+    last_count_time: dict[str, float],
 ) -> list[str]:
     """Count only transitions from inactive to active for each action."""
     newly_detected = []
+    now = time.monotonic()
 
     for action, detected in detections.items():
         if detected and not action_active[action]:
-            if counts[action] < TARGET_COUNT:
+            can_count = now - last_count_time[action] >= COUNT_COOLDOWN_SECONDS
+            if can_count and counts[action] < TARGET_COUNT:
                 counts[action] += 1
+                last_count_time[action] = now
+                newly_detected.append(action)
             action_active[action] = True
-            newly_detected.append(action)
         elif not detected:
             action_active[action] = False
 
@@ -159,6 +164,7 @@ def create_pose_landmarker() -> vision.PoseLandmarker:
 def main() -> None:
     counts = {action: 0 for action in ACTION_NAMES}
     action_active = {action: False for action in ACTION_NAMES}
+    last_count_time = {action: 0.0 for action in ACTION_NAMES}
 
     start_time = time.monotonic()
     last_timestamp_ms = -1
@@ -207,7 +213,7 @@ def main() -> None:
                     landmarks = result.pose_landmarks[0]
                     detections = detect_actions(landmarks)
                     current_actions = [action for action, detected in detections.items() if detected]
-                    update_counts(detections, counts, action_active)
+                    update_counts(detections, counts, action_active, last_count_time)
                     draw_arm_landmarks(frame, landmarks)
                 else:
                     for action in ACTION_NAMES:
