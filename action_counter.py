@@ -5,7 +5,7 @@ TARGET_COUNT = 5
 TIME_LIMIT_SECONDS = 60
 COUNT_COOLDOWN_SECONDS = 0.8
 
-ACTION_NAMES = ("LEFT_HAND_UP", "RIGHT_HAND_UP", "ARMS_OPEN")
+ACTION_NAMES = ("LEFT_HAND_UP", "RIGHT_HAND_UP", "CLAP")
 
 LEFT_SHOULDER = 11
 RIGHT_SHOULDER = 12
@@ -25,20 +25,14 @@ def is_right_hand_up(landmarks) -> bool:
     return right_wrist.y < right_shoulder.y
 
 
-def is_arms_open(landmarks) -> bool:
-    left_shoulder = landmarks[LEFT_SHOULDER]
-    right_shoulder = landmarks[RIGHT_SHOULDER]
+def is_clap(landmarks) -> bool:
     left_wrist = landmarks[LEFT_WRIST]
     right_wrist = landmarks[RIGHT_WRIST]
 
-    left_open = left_wrist.x < left_shoulder.x
-    right_open = right_wrist.x > right_shoulder.x
+    wrist_distance_x = abs(left_wrist.x - right_wrist.x)
+    wrist_distance_y = abs(left_wrist.y - right_wrist.y)
 
-    shoulder_y_avg = (left_shoulder.y + right_shoulder.y) / 2
-    left_wrist_near_shoulder = abs(left_wrist.y - shoulder_y_avg) < 0.25
-    right_wrist_near_shoulder = abs(right_wrist.y - shoulder_y_avg) < 0.25
-
-    return left_open and right_open and left_wrist_near_shoulder and right_wrist_near_shoulder
+    return wrist_distance_x < 0.10 and wrist_distance_y < 0.12
 
 
 def detect_actions(landmarks) -> dict[str, bool]:
@@ -48,7 +42,7 @@ def detect_actions(landmarks) -> dict[str, bool]:
     return {
         "LEFT_HAND_UP": is_left_hand_up(landmarks),
         "RIGHT_HAND_UP": is_right_hand_up(landmarks),
-        "ARMS_OPEN": is_arms_open(landmarks),
+        "CLAP": is_clap(landmarks),
     }
 
 
