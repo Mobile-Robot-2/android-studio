@@ -49,7 +49,7 @@ def health() -> dict:
 
 
 @app.post("/analyze")
-async def analyze(image: UploadFile = File(...)) -> dict:
+async def analyze(file: UploadFile = File(...)) -> dict:
     if analyzer is None:
         raise HTTPException(
             status_code=500,
@@ -59,7 +59,7 @@ async def analyze(image: UploadFile = File(...)) -> dict:
             },
         )
 
-    image_bytes = await image.read()
+    image_bytes = await file.read()
     if not image_bytes:
         raise HTTPException(status_code=400, detail="Empty image file.")
 
