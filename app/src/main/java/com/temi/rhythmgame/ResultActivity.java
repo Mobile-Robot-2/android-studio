@@ -9,7 +9,16 @@ import android.widget.Button;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
+
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.Query;
+import com.google.firebase.database.ValueEventListener;
 
 /**
  * ResultActivity - 결과 화면
@@ -21,6 +30,8 @@ public class ResultActivity extends AppCompatActivity {
 
     private static final String TAG = "ResultActivity";
     private CountDownTimer loadingTimer;
+    private int finalCalculatedScore = 0;
+    private int totalTouchCount = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -40,12 +51,16 @@ public class ResultActivity extends AppCompatActivity {
         tvFeedback.setVisibility(View.GONE);
         btnRestart.setVisibility(View.GONE);
 
-        // MainActivity에서 전달받은 점수 데이터
-        int score    = getIntent().getIntExtra("score", 0);
-        int maxScore = getIntent().getIntExtra("maxScore", 10);
-        Log.d(TAG, "받은 점수: " + score + "/" + maxScore);
+        // MainActivity에서 전달받은 시간 구간
+        String gameStartTime = getIntent().getStringExtra("startTime");
+        String gameEndTime = getIntent().getStringExtra("endTime");
 
-        // 10초 로딩 후 결과 표시
+        Log.d(TAG, "점수 계산 구간: " + gameStartTime + " ~ " + gameEndTime);
+
+        // Firebase 데이터 비동기 호출 시작
+        fetchFirebaseDataAndCalculate(gameStartTime, gameEndTime);
+
+        // 10초 로딩 타이머 시작 (타이머 종료 시 UI 업데이트)
         loadingTimer = new CountDownTimer(10000, 1000) {
 
             @Override
@@ -56,16 +71,18 @@ public class ResultActivity extends AppCompatActivity {
 
             @Override
             public void onFinish() {
-                Log.d(TAG, "로딩 완료 - 결과 표시");
-
-                // 로딩 화면 숨기기
+                // 로딩 숨기기
                 tvLoading.setVisibility(View.GONE);
                 progressBar.setVisibility(View.GONE);
 
-                // 결과 화면 표시
-                tvScore.setText("최종 점수: " + score + "/" + maxScore);
+                // 3. 비동기 호출로 계산된 최종 점수를 화면에 반영
+                tvScore.setText("최종 점수: " + finalCalculatedScore + " (총 터치: " + totalTouchCount + ")");
                 tvScore.setVisibility(View.VISIBLE);
+
+                // 추후 LLM 피드백을 여기에 반영
+                tvFeedback.setText("리듬감이 아주 훌륭합니다!");
                 tvFeedback.setVisibility(View.VISIBLE);
+
                 btnRestart.setVisibility(View.VISIBLE);
             }
         }.start();
@@ -78,6 +95,51 @@ public class ResultActivity extends AppCompatActivity {
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
             startActivity(intent);
             finish();
+        });
+    }
+
+    // Firebase 쿼리 및 비즈니스 로직
+    private void fetchFirebaseDataAndCalculate(String startTime, String endTime) {
+        DatabaseReference ref = FirebaseDatabase.getInstance().getReference("pad_data");
+
+        Log.d(TAG, "요청한 검색 구간: " + startTime + " ~ " + endTime);
+
+        // start_time을 기준으로 게임 시작 시간부터 종료 시간까지의 데이터만 필터링
+        Query gameDataQuery = ref.orderByChild("start_time").startAt(startTime).endAt(endTime);
+
+        // addListenerForSingleValueEvent: 지속적인 구독이 아닌 1회성 데이터 읽기 (결과창에 적합)
+        gameDataQuery.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                int tempScore = 0;
+                int count = 0;
+
+                for (DataSnapshot data : snapshot.getChildren()) {
+                    // 키 값을 통해 데이터 추출
+                    Integer pressure = data.child("pressure").getValue(Integer.class);
+                    Long duration = data.child("duration_ms").getValue(Long.class);
+
+                    if (pressure != null && duration != null) {
+                        count++;
+                        // 예시 비즈니스 로직: 압력이 80 이상이면 10점, 누른 시간이 500ms 이상이면 보너스 등
+                        if (pressure > 80) {
+                            tempScore += 10;
+                        } else {
+                            tempScore += 5;
+                        }
+                    }
+                }
+
+                // 전역 변수에 최종 결과 저장 (타이머 종료 시 화면에 반영됨)
+                finalCalculatedScore = tempScore;
+                totalTouchCount = count;
+                Log.d(TAG, "데이터 집계 완료. 총 건수: " + count + ", 합산 점수: " + finalCalculatedScore);
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                Log.e(TAG, "Firebase 데이터 호출 실패: " + error.getMessage());
+            }
         });
     }
 

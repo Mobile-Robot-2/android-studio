@@ -21,6 +21,9 @@ import androidx.core.content.ContextCompat;
 
 import com.google.common.util.concurrent.ListenableFuture;
 
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 import java.util.concurrent.ExecutionException;
 
 public class MainActivity extends AppCompatActivity {
@@ -29,12 +32,18 @@ public class MainActivity extends AppCompatActivity {
     private static final int REQUEST_CAMERA_PERMISSION = 100;
     private FillVideoView videoView;
     private PreviewView previewView;
+    private String gameStartTimeStr;
+    private String gameEndTimeStr;
+    private SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.KOREA);
 
     // ───────────────── 생명주기 ──────────────────────────────────────────
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        sdf.setTimeZone(java.util.TimeZone.getTimeZone("Asia/Seoul"));
+
         hideSystemUI();
         setContentView(R.layout.activity_main);
 
@@ -81,12 +90,15 @@ public class MainActivity extends AppCompatActivity {
         Uri videoUri = Uri.parse(
                 "android.resource://" + getPackageName() + "/" + R.raw.guide_video);
         videoView.setVideoURI(videoUri);
+
         videoView.setOnPreparedListener(mp -> {
             videoView.start();
-            Log.d(TAG, "영상 재생 시작");
+            gameStartTimeStr = sdf.format(new Date());
+            Log.d(TAG, "영상 재생 시작 시간: " + gameStartTimeStr);
         });
         videoView.setOnCompletionListener(mp -> {
-            Log.d(TAG, "영상 종료 → ResultActivity 이동");
+            gameEndTimeStr = sdf.format(new Date());
+            Log.d(TAG, "영상 종료 시간: " + gameEndTimeStr);
             goToResult();
         });
         videoView.setOnErrorListener((mp, what, extra) -> {
@@ -97,8 +109,8 @@ public class MainActivity extends AppCompatActivity {
 
     private void goToResult() {
         Intent intent = new Intent(MainActivity.this, ResultActivity.class);
-        intent.putExtra("score", 0);
-        intent.putExtra("maxScore", 10);
+        intent.putExtra("startTime", gameStartTimeStr);
+        intent.putExtra("endTime", gameEndTimeStr);
         startActivity(intent);
         finish();
     }
