@@ -43,7 +43,7 @@ import okhttp3.Response;
 
 public class MainActivity extends AppCompatActivity {
 
-    private static final String SERVER_URL = "http://YOUR_FASTAPI_SERVER:8000/pose";
+    private static final String SERVER_URL = "http://172.17.67.20:8000";
     private static final int CAMERA_PERMISSION_REQUEST_CODE = 1001;
 
     private PreviewView previewView;
@@ -222,7 +222,7 @@ public class MainActivity extends AppCompatActivity {
 
         Request request =
                 new Request.Builder()
-                        .url(SERVER_URL)
+                        .url(SERVER_URL + "/analyze")
                         .post(requestBody)
                         .build();
 
