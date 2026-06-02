@@ -56,6 +56,6 @@ dependencies {
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
 
-    // Temi SDK
-    implementation 'com.robotemi:sdk:1.131.4'
+    // Temi SDK (에뮬레이터 테스트 시 주석 처리, 실기기 배포 시 주석 해제)
+    // implementation 'com.robotemi:sdk:1.131.4'
 }
