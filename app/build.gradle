@@ -63,5 +63,5 @@ dependencies {
     implementation("com.google.firebase:firebase-database")
 
     // Temi SDK (에뮬레이터 테스트 시 주석 처리, 실기기 배포 시 주석 해제)
-    // implementation 'com.robotemi:sdk:1.131.4'
+    implementation "com.robotemi:sdk:1.137.1"
 }
