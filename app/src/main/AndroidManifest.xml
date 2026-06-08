@@ -49,6 +49,15 @@
             android:screenOrientation="landscape" />
 
         <receiver android:name=".AlarmReceiver" />
+
+        <activity
+            android:name=".MedicationActivity"
+            android:screenOrientation="landscape" />
+
+
+        <receiver
+            android:name=".MedicationAlarmReceiver"
+            android:exported="false"/>
     </application>
 
 </manifest>

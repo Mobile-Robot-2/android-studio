@@ -33,41 +33,122 @@ public class StartActivity extends AppCompatActivity {
             startActivity(new Intent(StartActivity.this, PrepareActivity.class));
         });
 
-        // 2. 새로 추가한 알람 설정 버튼
+        // 2. 기존 운동 알람 설정 버튼
         Button btnSetAlarm = findViewById(R.id.btnSetAlarm);
         btnSetAlarm.setOnClickListener(v -> {
             Log.d(TAG, "알람 설정 버튼 클릭 → 시간 팝업 호출");
             showTimePickerDialog();
         });
+
+        // 3. 복약 알람 설정 버튼
+        Button btnSetMedicationAlarm =
+                findViewById(R.id.btnSetMedicationAlarm);
+
+        btnSetMedicationAlarm.setOnClickListener(v -> {
+            Log.d(TAG, "복약 알람 설정 버튼 클릭");
+            showMedicationTimePickerDialog();
+        });
     }
 
-    // 안드로이드 기본 시간 선택기(시계 모양 팝업)를 띄우는 함수
+    // 운동 알람 시간 선택
     private void showTimePickerDialog() {
-        // 현재 시간을 기본값으로 세팅
+
         Calendar calendar = Calendar.getInstance();
-        int currentHour = calendar.get(Calendar.HOUR_OF_DAY);
-        int currentMinute = calendar.get(Calendar.MINUTE);
 
-        // 시간 선택 팝업창 생성
-        TimePickerDialog timePickerDialog = new TimePickerDialog(
-                this,
-                (view, selectedHour, selectedMinute) -> {
-                    // 사용자가 "확인"을 누르면 알람 등록 진행
-                    Log.d(TAG, "설정된 알람 시간 - " + selectedHour + "시 " + selectedMinute + "분");
+        int currentHour =
+                calendar.get(Calendar.HOUR_OF_DAY);
 
-                    // 만들어둔 AlarmHelper를 통해 알람 시스템에 등록
-                    AlarmHelper.setGameAlarm(StartActivity.this, selectedHour, selectedMinute);
+        int currentMinute =
+                calendar.get(Calendar.MINUTE);
 
-                    // 화면에 안내 메시지(Toast) 출력
-                    String timeText = selectedHour + "시 " + selectedMinute + "분에 알람이 설정되었습니다.";
-                    Toast.makeText(StartActivity.this, timeText, Toast.LENGTH_SHORT).show();
-                },
-                currentHour,
-                currentMinute,
-                false // 24시간제(true) 대신 AM/PM(false) 형식 사용
-        );
+        TimePickerDialog timePickerDialog =
+                new TimePickerDialog(
+                        this,
+                        (view, selectedHour, selectedMinute) -> {
 
-        // 팝업창 화면에 표시
+                            Log.d(
+                                    TAG,
+                                    "설정된 알람 시간 - "
+                                            + selectedHour
+                                            + "시 "
+                                            + selectedMinute
+                                            + "분"
+                            );
+
+                            AlarmHelper.setGameAlarm(
+                                    StartActivity.this,
+                                    selectedHour,
+                                    selectedMinute
+                            );
+
+                            String timeText =
+                                    selectedHour
+                                            + "시 "
+                                            + selectedMinute
+                                            + "분에 알람이 설정되었습니다.";
+
+                            Toast.makeText(
+                                    StartActivity.this,
+                                    timeText,
+                                    Toast.LENGTH_SHORT
+                            ).show();
+                        },
+                        currentHour,
+                        currentMinute,
+                        false
+                );
+
+        timePickerDialog.show();
+    }
+
+    // 복약 알람 시간 선택
+    private void showMedicationTimePickerDialog() {
+
+        Calendar calendar = Calendar.getInstance();
+
+        int currentHour =
+                calendar.get(Calendar.HOUR_OF_DAY);
+
+        int currentMinute =
+                calendar.get(Calendar.MINUTE);
+
+        TimePickerDialog timePickerDialog =
+                new TimePickerDialog(
+                        this,
+                        (view, selectedHour, selectedMinute) -> {
+
+                            Log.d(
+                                    TAG,
+                                    "복약 알람 설정 - "
+                                            + selectedHour
+                                            + "시 "
+                                            + selectedMinute
+                                            + "분"
+                            );
+
+                            MedicationHelper.setMedicationAlarm(
+                                    StartActivity.this,
+                                    selectedHour,
+                                    selectedMinute
+                            );
+
+                            String timeText =
+                                    selectedHour
+                                            + "시 "
+                                            + selectedMinute
+                                            + "분에 복약 알람이 설정되었습니다.";
+
+                            Toast.makeText(
+                                    StartActivity.this,
+                                    timeText,
+                                    Toast.LENGTH_SHORT
+                            ).show();
+                        },
+                        currentHour,
+                        currentMinute,
+                        false
+                );
+
         timePickerDialog.show();
     }
 }
