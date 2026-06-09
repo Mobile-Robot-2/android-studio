@@ -85,8 +85,6 @@ async def analyze(file: UploadFile = File(...)) -> dict:
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Pose analysis failed: {exc}") from exc
 
-<<<<<<< HEAD
-=======
     if analysis["detected"]:
         state = counter.update(analysis["detections"])
     else:
@@ -101,7 +99,6 @@ async def analyze(file: UploadFile = File(...)) -> dict:
         )
 
 
->>>>>>> 2eba389 (Add start button and reset functionality)
     return {
         "success": True,
         "detected": analysis["detected"],
@@ -111,27 +108,21 @@ async def analyze(file: UploadFile = File(...)) -> dict:
         "remaining_time": state["remaining_time"],
         "clear": state["clear"],
         "time_over": state["time_over"],
-<<<<<<< HEAD
         **fall_state,
-=======
         "elapsed_time": elapsed_time,
->>>>>>> 2eba389 (Add start button and reset functionality)
     }
 
 
 @app.post("/reset")
 def reset() -> dict:
-<<<<<<< HEAD
     with processing_lock:
         state = counter.reset()
         fall_state = fall_detector.reset()
-=======
     global game_start_time
     game_start_time = time.time()
     
     state = counter.reset()
     print(f"게임 시작: {game_start_time}")
->>>>>>> 2eba389 (Add start button and reset functionality)
     return {
         "success": True,
         "message": "Game state reset.",
@@ -147,11 +138,9 @@ def reset() -> dict:
 
 @app.get("/state")
 def state() -> dict:
-<<<<<<< HEAD
     with processing_lock:
         current_state = counter.get_state()
         fall_state = fall_detector.get_state()
-=======
     current_state = counter.get_state()
     
     elapsed_time = None
@@ -162,7 +151,6 @@ def state() -> dict:
             2
         )
         
->>>>>>> 2eba389 (Add start button and reset functionality)
     return {
         "success": True,
         "current_actions": current_state["current_actions"],
@@ -171,9 +159,6 @@ def state() -> dict:
         "remaining_time": current_state["remaining_time"],
         "clear": current_state["clear"],
         "time_over": current_state["time_over"],
-<<<<<<< HEAD
         **fall_state,
-=======
         "elapsed_time": elapsed_time,
->>>>>>> 2eba389 (Add start button and reset functionality)
     }
