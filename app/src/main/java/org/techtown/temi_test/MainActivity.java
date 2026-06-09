@@ -39,11 +39,12 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
+import android.widget.Button;
 //import kotlin.OptIn;
 
 public class MainActivity extends AppCompatActivity {
 
-    private static final String SERVER_URL = "http://172.17.67.20:8000";
+    private static final String SERVER_URL = "http://172.17.66.77:8000"; //무선랜 WIFI IP4
     private static final int CAMERA_PERMISSION_REQUEST_CODE = 1001;
 
     private PreviewView previewView;
@@ -63,6 +64,12 @@ public class MainActivity extends AppCompatActivity {
         previewView = findViewById(R.id.previewView);
         textStatus = findViewById(R.id.textStatus);
         cameraExecutor = Executors.newSingleThreadExecutor();
+
+        Button btnStart = findViewById(R.id.btnStart);
+        btnStart.setOnClickListener(v ->{
+            resetGameState();
+            textStatus.setText("게임 시작!");
+        });
 
 
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
@@ -253,6 +260,37 @@ public class MainActivity extends AppCompatActivity {
                                         + result
                         )
                 );
+            }
+        });
+    }
+
+    private void resetGameState() {
+
+        RequestBody body = RequestBody.create(
+                MediaType.parse("text/plain"),
+                ""
+        );
+
+        Request request =
+                new Request.Builder()
+                        .url(SERVER_URL + "/reset")
+                        .post(body)
+                        .build();
+
+        client.newCall(request).enqueue(new Callback() {
+
+            @Override
+            public void onFailure(Call call, IOException e) {
+                runOnUiThread(() ->
+                        textStatus.setText("게임 시작 실패\n" + e.getMessage()));
+            }
+
+            @Override
+            public void onResponse(Call call, Response response)
+                    throws IOException {
+
+                runOnUiThread(() ->
+                        textStatus.setText("게임 시작!"));
             }
         });
     }
