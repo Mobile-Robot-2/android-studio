@@ -6,9 +6,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from action_counter import ActionCounter
 from fall_detector import FallDetector
 from pose_analyzer import MODEL_PATH, PoseAnalyzer
+import time
 
 
 app = FastAPI(title="Pose Rhythm Game API")
+
+game_start_time = None
 
 app.add_middleware(
     CORSMiddleware,
@@ -82,6 +85,23 @@ async def analyze(file: UploadFile = File(...)) -> dict:
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Pose analysis failed: {exc}") from exc
 
+<<<<<<< HEAD
+=======
+    if analysis["detected"]:
+        state = counter.update(analysis["detections"])
+    else:
+        state = counter.mark_no_pose()
+
+    elapsed_time = None
+
+    if game_start_time is not None:
+        elapsed_time = round(
+            time.time() - game_start_time,
+            2
+        )
+
+
+>>>>>>> 2eba389 (Add start button and reset functionality)
     return {
         "success": True,
         "detected": analysis["detected"],
@@ -91,15 +111,27 @@ async def analyze(file: UploadFile = File(...)) -> dict:
         "remaining_time": state["remaining_time"],
         "clear": state["clear"],
         "time_over": state["time_over"],
+<<<<<<< HEAD
         **fall_state,
+=======
+        "elapsed_time": elapsed_time,
+>>>>>>> 2eba389 (Add start button and reset functionality)
     }
 
 
 @app.post("/reset")
 def reset() -> dict:
+<<<<<<< HEAD
     with processing_lock:
         state = counter.reset()
         fall_state = fall_detector.reset()
+=======
+    global game_start_time
+    game_start_time = time.time()
+    
+    state = counter.reset()
+    print(f"게임 시작: {game_start_time}")
+>>>>>>> 2eba389 (Add start button and reset functionality)
     return {
         "success": True,
         "message": "Game state reset.",
@@ -115,9 +147,22 @@ def reset() -> dict:
 
 @app.get("/state")
 def state() -> dict:
+<<<<<<< HEAD
     with processing_lock:
         current_state = counter.get_state()
         fall_state = fall_detector.get_state()
+=======
+    current_state = counter.get_state()
+    
+    elapsed_time = None
+
+    if game_start_time is not None:
+        elapsed_time = round(
+            time.time() - game_start_time,
+            2
+        )
+        
+>>>>>>> 2eba389 (Add start button and reset functionality)
     return {
         "success": True,
         "current_actions": current_state["current_actions"],
@@ -126,5 +171,9 @@ def state() -> dict:
         "remaining_time": current_state["remaining_time"],
         "clear": current_state["clear"],
         "time_over": current_state["time_over"],
+<<<<<<< HEAD
         **fall_state,
+=======
+        "elapsed_time": elapsed_time,
+>>>>>>> 2eba389 (Add start button and reset functionality)
     }
