@@ -1,7 +1,10 @@
+from threading import Lock
+
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
 from action_counter import ActionCounter
+from fall_detector import FallDetector
 from pose_analyzer import MODEL_PATH, PoseAnalyzer
 
 
@@ -16,8 +19,10 @@ app.add_middleware(
 )
 
 counter = ActionCounter()
+fall_detector = FallDetector()
 analyzer: PoseAnalyzer | None = None
 startup_error: str | None = None
+processing_lock = Lock()
 
 
 @app.on_event("startup")
@@ -64,16 +69,18 @@ async def analyze(file: UploadFile = File(...)) -> dict:
         raise HTTPException(status_code=400, detail="Empty image file.")
 
     try:
-        analysis = analyzer.analyze_image_bytes(image_bytes)
+        with processing_lock:
+            analysis = analyzer.analyze_image_bytes(image_bytes)
+            if analysis["detected"]:
+                state = counter.update(analysis["detections"])
+                fall_state = fall_detector.update(analysis["landmarks"])
+            else:
+                state = counter.mark_no_pose()
+                fall_state = fall_detector.update_no_pose()
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Pose analysis failed: {exc}") from exc
-
-    if analysis["detected"]:
-        state = counter.update(analysis["detections"])
-    else:
-        state = counter.mark_no_pose()
 
     return {
         "success": True,
@@ -84,12 +91,15 @@ async def analyze(file: UploadFile = File(...)) -> dict:
         "remaining_time": state["remaining_time"],
         "clear": state["clear"],
         "time_over": state["time_over"],
+        **fall_state,
     }
 
 
 @app.post("/reset")
 def reset() -> dict:
-    state = counter.reset()
+    with processing_lock:
+        state = counter.reset()
+        fall_state = fall_detector.reset()
     return {
         "success": True,
         "message": "Game state reset.",
@@ -99,12 +109,15 @@ def reset() -> dict:
         "remaining_time": state["remaining_time"],
         "clear": state["clear"],
         "time_over": state["time_over"],
+        **fall_state,
     }
 
 
 @app.get("/state")
 def state() -> dict:
-    current_state = counter.get_state()
+    with processing_lock:
+        current_state = counter.get_state()
+        fall_state = fall_detector.get_state()
     return {
         "success": True,
         "current_actions": current_state["current_actions"],
@@ -113,4 +126,5 @@ def state() -> dict:
         "remaining_time": current_state["remaining_time"],
         "clear": current_state["clear"],
         "time_over": current_state["time_over"],
+        **fall_state,
     }
