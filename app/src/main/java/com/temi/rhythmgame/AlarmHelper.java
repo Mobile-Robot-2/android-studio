@@ -5,6 +5,7 @@ import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Build;
+import android.util.Log;
 
 import java.util.Calendar;
 
@@ -48,6 +49,27 @@ public class AlarmHelper {
                 alarmManager.setExactAndAllowWhileIdle(
                         AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis(), pendingIntent);
             }
+        }
+    }
+
+    // [추가] 운동 알람 취소 함수 (requestCode: 0)
+    public static void cancelGameAlarm(Context context) {
+        AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+        Intent intent = new Intent(context, AlarmReceiver.class);
+
+        // 등록할 때와 동일한 식별자(0)로 PendingIntent 생성
+        // FLAG_NO_CREATE: 기존에 생성된 알람이 없다면 새로 만들지 않고 null을 반환하여 안전하게 체크
+        PendingIntent pendingIntent = PendingIntent.getBroadcast(
+                context,
+                0,
+                intent,
+                PendingIntent.FLAG_NO_CREATE | PendingIntent.FLAG_IMMUTABLE
+        );
+
+        if (alarmManager != null && pendingIntent != null) {
+            alarmManager.cancel(pendingIntent); // AlarmManager에서 예약 삭제
+            pendingIntent.cancel();             // PendingIntent 메모리 해제
+            Log.d("AlarmHelper", "운동 알람(0) 취소 완료");
         }
     }
 }

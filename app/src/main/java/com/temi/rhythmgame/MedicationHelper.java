@@ -5,6 +5,7 @@ import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Build;
+import android.util.Log;
 
 import java.util.Calendar;
 
@@ -58,6 +59,25 @@ public class MedicationHelper {
                         pendingIntent
                 );
             }
+        }
+    }
+
+    public static void cancelMedicationAlarm(Context context) {
+        AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+        Intent intent = new Intent(context, MedicationAlarmReceiver.class);
+
+        // 등록할 때와 동일한 식별자(100)로 PendingIntent 생성
+        PendingIntent pendingIntent = PendingIntent.getBroadcast(
+                context,
+                100,
+                intent,
+                PendingIntent.FLAG_NO_CREATE | PendingIntent.FLAG_IMMUTABLE
+        );
+
+        if (alarmManager != null && pendingIntent != null) {
+            alarmManager.cancel(pendingIntent); // AlarmManager에서 예약 삭제
+            pendingIntent.cancel();             // PendingIntent 메모리 해제
+            Log.d("MedicationHelper", "복약 알람(100) 취소 완료");
         }
     }
 }

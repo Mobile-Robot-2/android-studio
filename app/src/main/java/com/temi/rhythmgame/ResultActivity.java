@@ -5,6 +5,7 @@ import android.os.Bundle;
 import android.os.CountDownTimer;
 import android.util.Log;
 import android.view.View;
+import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.ProgressBar;
 import android.widget.TextView;
@@ -19,6 +20,8 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.Query;
 import com.google.firebase.database.ValueEventListener;
+import com.robotemi.sdk.Robot;
+import com.robotemi.sdk.TtsRequest;
 
 /**
  * ResultActivity - 결과 화면
@@ -33,11 +36,20 @@ public class ResultActivity extends AppCompatActivity {
     private int finalCalculatedScore = 0;
     private int totalTouchCount = 0;
 
+    private Robot robot; // 로봇 객체 선언
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        // 화면 꺼짐 방지: 10초 대기 중 화면이 꺼지는 불상사 방지
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+                | WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON);
+
         setContentView(R.layout.activity_result);
         Log.d(TAG, "ResultActivity 생성됨 - 결과 계산 시작");
+
+        robot = Robot.getInstance(); // 로봇 초기화
 
         // 뷰 참조
         TextView  tvLoading   = findViewById(R.id.tvLoading);
@@ -60,7 +72,7 @@ public class ResultActivity extends AppCompatActivity {
         // Firebase 데이터 비동기 호출 시작
         fetchFirebaseDataAndCalculate(gameStartTime, gameEndTime);
 
-        // 10초 로딩 타이머 시작 (타이머 종료 시 UI 업데이트)
+        // 10초 로딩 타이머 시작
         loadingTimer = new CountDownTimer(10000, 1000) {
 
             @Override
@@ -75,23 +87,31 @@ public class ResultActivity extends AppCompatActivity {
                 tvLoading.setVisibility(View.GONE);
                 progressBar.setVisibility(View.GONE);
 
-                // 3. 비동기 호출로 계산된 최종 점수를 화면에 반영
+                // UI 업데이트
                 tvScore.setText("최종 점수: " + finalCalculatedScore + " (총 터치: " + totalTouchCount + ")");
                 tvScore.setVisibility(View.VISIBLE);
 
-                // 추후 LLM 피드백을 여기에 반영
                 tvFeedback.setText("리듬감이 아주 훌륭합니다!");
                 tvFeedback.setVisibility(View.VISIBLE);
-
                 btnRestart.setVisibility(View.VISIBLE);
+
+                // TTS 음성 출력 추가 (점수 동적 바인딩)
+                String ttsMessage = "최종 점수는 " + finalCalculatedScore + "점입니다. 정말 수고하셨습니다!";
+                robot.speak(TtsRequest.create(ttsMessage, false));
+
+                // 데모 시나리오 일치화: 결과 출력 후 홈 베이스 복귀 (필요 시 주석 해제)
+                robot.goTo("home base");
             }
         }.start();
 
-        // "다시 하기" 버튼: StartActivity로 이동 (백스택 전체 초기화)
+        // "다시 하기" 버튼
         btnRestart.setOnClickListener(v -> {
             Log.d(TAG, "다시 하기 클릭 → StartActivity로 초기화 이동");
+
+            // TTS 강제 종료: 말하고 있는 도중에 버튼을 누르면 말이 겹치지 않도록 끊어줌
+            robot.cancelAllTtsRequests();
+
             Intent intent = new Intent(this, StartActivity.class);
-            // FLAG_ACTIVITY_CLEAR_TOP: 기존 스택의 StartActivity 위 Activity 모두 제거
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
             startActivity(intent);
             finish();
@@ -146,10 +166,13 @@ public class ResultActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        // 메모리 누수 방지: Activity 종료 시 타이머 취소
         if (loadingTimer != null) {
             loadingTimer.cancel();
             Log.d(TAG, "로딩 타이머 취소됨");
+        }
+        // 안전장치
+        if (robot != null) {
+            robot.cancelAllTtsRequests();
         }
     }
 }

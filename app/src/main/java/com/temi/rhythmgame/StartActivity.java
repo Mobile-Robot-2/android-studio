@@ -15,6 +15,7 @@ import java.util.Calendar;
  * StartActivity - 앱의 시작 화면
  * "리듬게임 시작!" 버튼을 클릭하면 PrepareActivity로 이동합니다.
  * "운동 알람 맞추기" 버튼을 클릭하면 예약 다이얼로그가 뜹니다.
+ * "알람 취소" 버튼을 클릭하면 예약된 모든 알람을 해제합니다.
  */
 public class StartActivity extends AppCompatActivity {
 
@@ -41,12 +42,25 @@ public class StartActivity extends AppCompatActivity {
         });
 
         // 3. 복약 알람 설정 버튼
-        Button btnSetMedicationAlarm =
-                findViewById(R.id.btnSetMedicationAlarm);
-
+        Button btnSetMedicationAlarm = findViewById(R.id.btnSetMedicationAlarm);
         btnSetMedicationAlarm.setOnClickListener(v -> {
             Log.d(TAG, "복약 알람 설정 버튼 클릭");
             showMedicationTimePickerDialog();
+        });
+
+        // ⭐️ 4. [추가] 모든 알람 취소 버튼 연결
+        Button btnCancelAllAlarms = findViewById(R.id.btnCancelAllAlarms);
+        btnCancelAllAlarms.setOnClickListener(v -> {
+            Log.d(TAG, "모든 알람 취소 버튼 클릭");
+
+            // 운동 알람 취소 (requestCode: 0)
+            AlarmHelper.cancelGameAlarm(StartActivity.this);
+
+            // 복약 알람 취소 (requestCode: 100)
+            MedicationHelper.cancelMedicationAlarm(StartActivity.this);
+
+            // 사용자 알림 피드백
+            Toast.makeText(StartActivity.this, "설정된 모든 알람이 취소되었습니다.", Toast.LENGTH_SHORT).show();
         });
     }
 

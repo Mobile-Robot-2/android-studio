@@ -20,13 +20,16 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
 import com.google.common.util.concurrent.ListenableFuture;
+import com.robotemi.sdk.BatteryData;
+import com.robotemi.sdk.Robot;
+import com.robotemi.sdk.listeners.OnBatteryStatusChangedListener;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 import java.util.concurrent.ExecutionException;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements OnBatteryStatusChangedListener {
 
     private static final String TAG = "MainActivity";
     private static final int REQUEST_CAMERA_PERMISSION = 100;
@@ -35,6 +38,8 @@ public class MainActivity extends AppCompatActivity {
     private String gameStartTimeStr;
     private String gameEndTimeStr;
     private SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.KOREA);
+
+    private Robot robot;
 
     // ───────────────── 생명주기 ──────────────────────────────────────────
 
@@ -56,6 +61,41 @@ public class MainActivity extends AppCompatActivity {
             startCamera();
         } else {
             requestCameraPermission();
+        }
+
+        robot = Robot.getInstance();
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        if (robot != null) {
+            robot.addOnBatteryStatusChangedListener(this);
+        }
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        if (robot != null) {
+            robot.removeOnBatteryStatusChangedListener(this);
+        }
+    }
+
+    @Override
+    public void onBatteryStatusChanged(BatteryData batteryData) {
+        int batteryLevel = batteryData.getBatteryPercentage();
+        boolean isCharging = batteryData.isCharging();
+
+        // 예시: 20% 이하로 떨어졌고 충전 중이 아닐 때
+        if (batteryLevel <= 20 && !isCharging) {
+
+            // 배터리 복귀 화면으로 전환
+            Intent intent = new Intent(this, BatteryReturnActivity.class);
+            startActivity(intent);
+
+            // 현재 리듬게임 화면 종료
+            finish();
         }
     }
 

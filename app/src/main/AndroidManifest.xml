@@ -58,6 +58,11 @@
         <receiver
             android:name=".MedicationAlarmReceiver"
             android:exported="false"/>
+
+        <activity
+            android:name=".BatteryReturnActivity"
+            android:exported="false"
+            android:screenOrientation="landscape" />
     </application>
 
 </manifest>
