@@ -24,6 +24,8 @@ public class MedicationActivity extends AppCompatActivity {
     private TextView tvTimer;
     private Button btnMedicationDone;
 
+    private boolean isCallLaunched = false;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -37,21 +39,17 @@ public class MedicationActivity extends AppCompatActivity {
 
         setContentView(R.layout.activity_medication);
 
-        robot = Robot.getInstance(); // 주석 해제 완료
+        robot = Robot.getInstance();
 
         tvMessage = findViewById(R.id.tvMessage);
         tvTimer = findViewById(R.id.tvTimer);
         btnMedicationDone = findViewById(R.id.btnMedicationDone);
 
-        // [추가] 1. 복약 알람 시에도 어르신이 계신 곳으로 자율 주행 이동
+        // 복약 알람 시 어르신이 계신 곳으로 자율 주행 이동
         robot.goTo("거실");
-
-        // [추가] 2. 시선 맞춤 활성화
         robot.setTrackUserOn(true);
 
         tvMessage.setText("복약하실 시간입니다.\n약을 드셨다면 복약 완료 버튼을 눌러주세요.");
-
-        // 실기기 TTS 주석 해제 완료
         robot.speak(TtsRequest.create("복약하실 시간입니다. 약을 드셨다면 복약 완료 버튼을 눌러주세요.", false));
 
         countDownTimer = new CountDownTimer(60000, 1000) {
@@ -68,24 +66,31 @@ public class MedicationActivity extends AppCompatActivity {
 
                 tvMessage.setText("응답이 없어 보호자에게 연락합니다.");
                 tvTimer.setText("영상통화 연결 중...");
-
-                // 타임아웃 시 음성 안내
                 robot.speak(TtsRequest.create("응답이 없어 보호자에게 긴급 연락을 시도합니다.", false));
 
-                // [추가] 3. 테미에 등록된 마스터 보호자 동적 탐색 및 영상통화 연결 (Deprecated 에러 해결)
-                List<UserInfo> adminList = Collections.singletonList(robot.getAdminInfo());
-                if (adminList != null && !adminList.isEmpty()) {
-                    String targetName = adminList.get(0).getName();
-                    String targetUserId = adminList.get(0).getUserId();
+                // 🚨 [수정] 강제 리스트화(Collections.singletonList) 시 앱이 튕길 수 있어 안전한 단일 객체 호출로 복구했습니다.
+                UserInfo adminInfo = robot.getAdminInfo();
+
+                if (adminInfo != null) {
+                    String targetName = adminInfo.getName();
+                    String targetUserId = adminInfo.getUserId();
+
+                    // ⭐️ 1. 영상통화가 시작됨을 플래그에 기록
+                    isCallLaunched = true;
 
                     // 모바일 플랫폼으로 명시하여 즉시 전화 연결
                     robot.startTelepresence(targetName, targetUserId, com.robotemi.sdk.constants.Platform.MOBILE);
+
+                    // ⭐️ 2. 기존에 있던 finish(); 삭제 -> 앱이 죽지 않고 백그라운드에 대기합니다!
                 } else {
                     Log.e("MedicationActivity", "등록된 보호자 없음");
-                    robot.speak(TtsRequest.create("연결할 보호자 연락처가 없습니다.", false));
-                }
+                    robot.speak(TtsRequest.create("연결할 보호자 연락처가 없습니다. 홈 베이스로 복귀합니다.", false));
 
-                finish();
+                    // 보호자가 없을 때만 바로 복귀 후 종료
+                    robot.setTrackUserOn(false);
+                    robot.goTo("home base");
+                    finish();
+                }
             }
         }.start();
 
@@ -96,23 +101,44 @@ public class MedicationActivity extends AppCompatActivity {
 
             tvMessage.setText("복약이 확인되었습니다.");
             tvTimer.setText("알람 종료");
-
-            // 정상 복약 시 음성 안내 후 복귀
             robot.speak(TtsRequest.create("복약이 확인되었습니다. 홈 베이스로 복귀합니다.", false));
 
-            // [추가] 4. 정상 처리 후 충전소로 복귀 및 트래킹 해제
             robot.setTrackUserOn(false);
             robot.goTo("home base");
-
             finish();
         });
+    }
+
+    // ────────────────────────────────────────────────────────
+    // ⭐️ 3. [추가] 영상통화가 끝나고 다시 화면이 켜졌을 때의 동작
+    // ────────────────────────────────────────────────────────
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+        // 영상통화 화면이 닫히고 다시 우리 앱으로 돌아온 상태라면
+        if (isCallLaunched) {
+            Log.d("MedicationActivity", "보호자 통화 종료 확인 - 홈 베이스 복귀 시작");
+
+            // 다음 알람을 위해 플래그 원상복구
+            isCallLaunched = false;
+
+            // 시선 추적 끄고 진짜 충전소로 복귀
+            if (robot != null) {
+                robot.setTrackUserOn(false);
+                robot.goTo("home base");
+            }
+
+            // 복귀 명령이 내려졌으니 이제 완전히 앱 종료
+            finish();
+        }
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
         if (robot != null) {
-            robot.setTrackUserOn(false); // 안전장치 추가
+            robot.setTrackUserOn(false);
         }
         if (countDownTimer != null) {
             countDownTimer.cancel();
