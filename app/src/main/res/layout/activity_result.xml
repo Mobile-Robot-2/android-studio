@@ -1,15 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-    ResultActivity 레이아웃 - 결과 화면
-    초기 10초: 로딩 화면 (tvLoading + progressBar)
-    10초 후  : 결과 화면 (tvScore + tvFeedback + btnRestart)
--->
 <androidx.constraintlayout.widget.ConstraintLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/bg_dark">
+    android:background="#15171E"> <!-- 앞서 선택한 깊고 차분한 다크 배경 -->
 
     <!-- ─── 로딩 화면 (초기 10초 표시) ─── -->
 
@@ -18,35 +13,38 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="결과를 계산하고 있어요!"
-        android:textSize="36sp"
-        android:textColor="@color/white"
+        android:textSize="40sp"
+        android:textColor="#FFFFFF"
         android:textStyle="bold"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintBottom_toTopOf="@+id/progressBar"
         app:layout_constraintVertical_chainStyle="packed"
-        android:layout_marginBottom="40dp"/>
+        android:layout_marginBottom="32dp"/>
 
+    <!-- 빙글빙글 도는 로딩 아이콘 (네온 블루 색상 적용) -->
     <ProgressBar
         android:id="@+id/progressBar"
-        android:layout_width="120dp"
-        android:layout_height="120dp"
+        android:layout_width="100dp"
+        android:layout_height="100dp"
+        android:indeterminateTint="#4DB8FF"
         app:layout_constraintTop_toBottomOf="@+id/tvLoading"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"/>
 
+
     <!-- ─── 결과 화면 (10초 후 표시) ─── -->
 
-    <!-- 최종 점수 -->
+    <!-- 최종 점수 (가장 눈에 띄는 황금/노란색 계열) -->
     <TextView
         android:id="@+id/tvScore"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="최종 점수: 7/10"
-        android:textSize="52sp"
-        android:textColor="@color/accent_yellow"
+        android:textSize="64sp"
+        android:textColor="#FFD700"
         android:textStyle="bold"
         android:visibility="gone"
         app:layout_constraintTop_toTopOf="parent"
@@ -54,39 +52,43 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintBottom_toTopOf="@+id/tvFeedback"
         app:layout_constraintVertical_chainStyle="packed"
-        android:layout_marginBottom="32dp"/>
+        android:layout_marginBottom="24dp"/>
 
-    <!-- LLM 피드백 자리 (Step 3에서 실제 피드백으로 대체 예정) -->
+    <!-- LLM 피드백 자리 (가로 화면에서 가독성을 위해 너비 제한 및 중앙 정렬) -->
     <TextView
         android:id="@+id/tvFeedback"
-        android:layout_width="wrap_content"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:text="[LLM 피드백 자리]"
-        android:textSize="28sp"
-        android:textColor="@color/text_gray"
+        android:textSize="32sp"
+        android:textColor="#E0E0E0"
+        android:textAlignment="center"
+        android:lineSpacingExtra="10dp"
         android:visibility="gone"
+        app:layout_constraintWidth_percent="0.8"
         app:layout_constraintTop_toBottomOf="@+id/tvScore"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintBottom_toTopOf="@+id/btnRestart"
-        android:layout_marginBottom="40dp"/>
+        android:layout_marginBottom="48dp"/>
 
-    <!-- 다시 하기 버튼 -->
+    <!-- 다시 하기 버튼 (시작 버튼과 동일한 네온 블루 보더라인 스타일) -->
     <Button
         android:id="@+id/btnRestart"
-        android:layout_width="300dp"
-        android:layout_height="90dp"
-        android:text="다시 하기"
-        android:textSize="30sp"
-        android:textColor="@color/white"
+        android:layout_width="360dp"
+        android:layout_height="100dp"
+        android:text="🔄 다시 하기"
+        android:textSize="32sp"
+        android:textColor="#4DB8FF"
         android:textStyle="bold"
-        android:backgroundTint="@color/primary_blue"
+        android:backgroundTint="#20232E"
+        app:strokeWidth="2dp"
+        app:strokeColor="#4DB8FF"
+        app:cornerRadius="24dp"
         android:visibility="gone"
         app:layout_constraintTop_toBottomOf="@+id/tvFeedback"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginTop="40dp"
-        android:layout_marginBottom="48dp"/>
+        app:layout_constraintEnd_toEndOf="parent"/>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
