@@ -35,7 +35,7 @@ public class AlarmActivity extends AppCompatActivity {
 
         // [추가] 1. 홈 베이스에서 분리되어 어르신이 계신 지정된 장소로 이동
         // 테미 기기에 저장해 둔 위치 이름(예: "거실 소파", "아버지 방")을 정확히 입력하세요.
-        robot.goTo("Sofa");
+        robot.goTo("거실");
 
         // [추가] 2. 이동하면서 주변 사용자를 찾아 시선을 맞추도록 설정 (Face Tracking)
         robot.setTrackUserOn(true);
@@ -57,7 +57,7 @@ public class AlarmActivity extends AppCompatActivity {
                 robot.setTrackUserOn(false);
                 robot.stopMovement();
                 robot.speak(TtsRequest.create("응답이 확인되지 않아 알람을 종료하고 대기 장소로 복귀합니다.", false));
-                robot.goTo("홈베이스");
+                robot.goTo("home base");
                 finish();
             }
         }.start();

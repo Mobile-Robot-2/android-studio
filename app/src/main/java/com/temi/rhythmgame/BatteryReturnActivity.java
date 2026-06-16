@@ -26,6 +26,6 @@ public class BatteryReturnActivity extends AppCompatActivity {
         robot.speak(TtsRequest.create("배터리가 부족하여 충전소로 복귀합니다.", false));
 
         // 2. 홈 베이스로 복귀 명령
-        robot.goTo("홈베이스");
+        robot.goTo("home base");
     }
 }
