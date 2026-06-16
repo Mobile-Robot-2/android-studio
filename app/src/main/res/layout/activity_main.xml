@@ -1,32 +1,79 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#000000"
+    android:orientation="vertical"
+    android:padding="12dp"
     tools:context=".MainActivity">
 
     <androidx.camera.view.PreviewView
         android:id="@+id/previewView"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_height="190dp"
+        android:background="#000000"
         app:scaleType="fillCenter" />
 
-    <org.techtown.temi_test.PoseOverlayView
-        android:id="@+id/poseOverlayView"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent" />
-
     <TextView
-        android:id="@+id/textStatus"
+        android:id="@+id/textRobotStatus"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_gravity="bottom"
-        android:background="#99000000"
-        android:padding="16dp"
-        android:text="@string/pose_camera_starting"
-        android:textColor="#FFFFFF"
-        android:textSize="16sp" />
+        android:layout_marginTop="8dp"
+        android:background="#E8F0FE"
+        android:padding="10dp"
+        android:text="Temi 상태 초기화 중..."
+        android:textColor="#202124"
+        android:textSize="14sp" />
 
-</FrameLayout>
+    <TextView
+        android:id="@+id/textResponse"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="8dp"
+        android:layout_weight="1"
+        android:background="#F4F4F4"
+        android:padding="12dp"
+        android:scrollbars="vertical"
+        android:text="FastAPI 서버 연결 대기 중"
+        android:textColor="#222222"
+        android:textSize="14sp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/buttonHealth"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Health" />
+
+        <Button
+            android:id="@+id/buttonState"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:layout_weight="1"
+            android:text="State" />
+
+        <Button
+            android:id="@+id/buttonReset"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:layout_weight="1"
+            android:text="Reset" />
+    </LinearLayout>
+
+    <Button
+        android:id="@+id/buttonAnalyzeCamera"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:text="Analyze Camera Frame" />
+
+</LinearLayout>
