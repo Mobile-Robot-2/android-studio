@@ -100,7 +100,7 @@ public class ResultActivity extends AppCompatActivity {
                 robot.speak(TtsRequest.create(ttsMessage, false));
 
                 // 데모 시나리오 일치화: 결과 출력 후 홈 베이스 복귀 (필요 시 주석 해제)
-                robot.goTo("home base");
+                robot.goTo("홈베이스");
             }
         }.start();
 

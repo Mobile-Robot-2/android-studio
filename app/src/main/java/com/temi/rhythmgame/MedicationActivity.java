@@ -44,7 +44,7 @@ public class MedicationActivity extends AppCompatActivity {
         btnMedicationDone = findViewById(R.id.btnMedicationDone);
 
         // [추가] 1. 복약 알람 시에도 어르신이 계신 곳으로 자율 주행 이동
-        robot.goTo("거실 소파");
+        robot.goTo("Sofa");
 
         // [추가] 2. 시선 맞춤 활성화
         robot.setTrackUserOn(true);
@@ -102,7 +102,7 @@ public class MedicationActivity extends AppCompatActivity {
 
             // [추가] 4. 정상 처리 후 충전소로 복귀 및 트래킹 해제
             robot.setTrackUserOn(false);
-            robot.goTo("home base");
+            robot.goTo("홈베이스");
 
             finish();
         });
