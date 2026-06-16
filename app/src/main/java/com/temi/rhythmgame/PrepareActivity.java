@@ -26,6 +26,8 @@ public class PrepareActivity extends AppCompatActivity {
     /** 첫 번째 체크 시작 딜레이 (ms) */
     private static final long CHECK_START_DELAY_MS = 800L;
 
+    private int selectedVideoType = 1;
+
     private TextView tvCountdown;
     private TextView tvCheckLog;
 
@@ -58,6 +60,10 @@ public class PrepareActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_prepare);
+
+        // ⭐️ StartActivity가 보낸 videoType 받기 (기본값은 1)
+        selectedVideoType = getIntent().getIntExtra("videoType", 1);
+        Log.d(TAG, "StartActivity로부터 전달받은 비디오 타입: " + selectedVideoType);
 
         tvCountdown = findViewById(R.id.tvCountdown);
         tvCheckLog  = findViewById(R.id.tvCheckLog);
@@ -123,13 +129,16 @@ public class PrepareActivity extends AppCompatActivity {
                 == PackageManager.PERMISSION_GRANTED;
     }
 
-    /** 체크 2: 영상 파일 존재 여부 (res/raw/guide_video) */
+    /** 체크 2: 선택된 영상 파일 존재 여부 동적 확인 */
     private boolean checkVideoFile() {
         try {
-            getResources().openRawResourceFd(R.raw.guide_video);
+            // ⭐️ 전달받은 번호에 따라 검사할 파일 지정
+            int videoResId = (selectedVideoType == 2) ? R.raw.answer_video_2 : R.raw.answer_video_1;
+
+            getResources().openRawResourceFd(videoResId);
             return true;
         } catch (Exception e) {
-            Log.e(TAG, "영상 파일 없음: " + e.getMessage());
+            Log.e(TAG, selectedVideoType + "번 영상 파일 없음: " + e.getMessage());
             return false;
         }
     }
@@ -165,7 +174,12 @@ public class PrepareActivity extends AppCompatActivity {
             @Override
             public void onFinish() {
                 Log.d(TAG, "카운트다운 완료 → MainActivity 전환");
-                startActivity(new Intent(PrepareActivity.this, MainActivity.class));
+
+                Intent intent = new Intent(PrepareActivity.this, MainActivity.class);
+                // ⭐️ MainActivity가 영상을 틀 수 있도록 바통을 그대로 다시 전달!
+                intent.putExtra("videoType", selectedVideoType);
+
+                startActivity(intent);
                 finish();
             }
         }.start();

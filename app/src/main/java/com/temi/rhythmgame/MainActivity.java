@@ -88,7 +88,7 @@ public class MainActivity extends AppCompatActivity implements OnBatteryStatusCh
         boolean isCharging = batteryData.isCharging();
 
         // 예시: 20% 이하로 떨어졌고 충전 중이 아닐 때
-        if (batteryLevel <= 20 && !isCharging) {
+        if (batteryLevel <= 39 && !isCharging) {
 
             // 배터리 복귀 화면으로 전환
             Intent intent = new Intent(this, BatteryReturnActivity.class);
@@ -127,8 +127,19 @@ public class MainActivity extends AppCompatActivity implements OnBatteryStatusCh
     // ───────────────── 영상 ──────────────────────────────────────────────
 
     private void setupVideo() {
-        Uri videoUri = Uri.parse(
-                "android.resource://" + getPackageName() + "/" + R.raw.guide_video);
+        // ⭐️ 1. PrepareActivity로부터 전달받은 비디오 타입 번호 꺼내기 (기본값은 1)
+        int videoType = getIntent().getIntExtra("videoType", 1);
+        Log.d(TAG, "선택된 비디오 타입: " + videoType);
+
+        // ⭐️ 2. 번호에 따라 재생할 raw 파일 동적으로 선택
+        int videoResId;
+        if (videoType == 2) {
+            videoResId = R.raw.answer_video_2; // 2번 영상 파일명 (res/raw 폴더에 있어야 함)
+        } else {
+            videoResId = R.raw.answer_video_1; // 1번 영상 파일명
+        }
+
+        Uri videoUri = Uri.parse("android.resource://" + getPackageName() + "/" + videoResId);
         videoView.setVideoURI(videoUri);
 
         videoView.setOnPreparedListener(mp -> {
@@ -136,11 +147,13 @@ public class MainActivity extends AppCompatActivity implements OnBatteryStatusCh
             gameStartTimeStr = sdf.format(new Date());
             Log.d(TAG, "영상 재생 시작 시간: " + gameStartTimeStr);
         });
+
         videoView.setOnCompletionListener(mp -> {
             gameEndTimeStr = sdf.format(new Date());
             Log.d(TAG, "영상 종료 시간: " + gameEndTimeStr);
             goToResult();
         });
+
         videoView.setOnErrorListener((mp, what, extra) -> {
             Log.e(TAG, "영상 오류 what=" + what + " extra=" + extra);
             return true;

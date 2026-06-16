@@ -28,10 +28,22 @@ public class StartActivity extends AppCompatActivity {
         Log.d(TAG, "StartActivity 생성됨");
 
         // 1. 기존 게임 시작 버튼
-        Button btnStart = findViewById(R.id.btnStart);
-        btnStart.setOnClickListener(v -> {
-            Log.d(TAG, "시작 버튼 클릭 → PrepareActivity로 전환");
-            startActivity(new Intent(StartActivity.this, PrepareActivity.class));
+        // 1-1. 영상 1번 시작 버튼
+        Button btnStart1 = findViewById(R.id.btnStart1);
+        btnStart1.setOnClickListener(v -> {
+            Log.d(TAG, "영상 1번 클릭 → PrepareActivity로 전환");
+            Intent intent = new Intent(StartActivity.this, PrepareActivity.class);
+            intent.putExtra("videoType", 1); // ⭐️ 1번 영상이라는 이름표 달기
+            startActivity(intent);
+        });
+
+        // 1-2. 영상 2번 시작 버튼
+        Button btnStart2 = findViewById(R.id.btnStart2);
+        btnStart2.setOnClickListener(v -> {
+            Log.d(TAG, "영상 2번 클릭 → PrepareActivity로 전환");
+            Intent intent = new Intent(StartActivity.this, PrepareActivity.class);
+            intent.putExtra("videoType", 2); // ⭐️ 2번 영상이라는 이름표 달기
+            startActivity(intent);
         });
 
         // 2. 기존 운동 알람 설정 버튼
