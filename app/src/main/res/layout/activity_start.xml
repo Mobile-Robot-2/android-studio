@@ -5,91 +5,107 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:padding="32dp"
-    android:background="@color/bg_dark">
+    android:background="#15171E"> <!-- 원래의 깊고 차분한 다크 배경 유지 -->
 
-    <TextView
-        android:id="@+id/tvTitle"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="리듬 체조 게임"
-        android:textSize="40sp"
-        android:textColor="@color/white"
-        android:textStyle="bold"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintBottom_toTopOf="@+id/btnStart1"
-        app:layout_constraintVertical_chainStyle="packed"
-        android:layout_marginBottom="48dp"/>
-
-    <Button
-        android:id="@+id/btnStart1"
-        android:layout_width="0dp"
-        android:layout_height="90dp"
-        android:layout_marginEnd="8dp"
-        android:text="1단계 시작!"
-        android:textSize="24sp"
-        android:textColor="@color/white"
-        android:textStyle="bold"
-        android:backgroundTint="@color/primary_blue"
-        app:layout_constraintTop_toBottomOf="@+id/tvTitle"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toStartOf="@+id/btnStart2"/>
-
-    <Button
-        android:id="@+id/btnStart2"
-        android:layout_width="0dp"
-        android:layout_height="90dp"
-        android:layout_marginStart="8dp"
-        android:text="2단계 시작!"
-        android:textSize="24sp"
-        android:textColor="@color/white"
-        android:textStyle="bold"
-        android:backgroundTint="#9C27B0" app:layout_constraintTop_toBottomOf="@+id/tvTitle"
-        app:layout_constraintStart_toEndOf="@+id/btnStart1"
-        app:layout_constraintEnd_toEndOf="parent"/>
-
-    <Button
-        android:id="@+id/btnSetAlarm"
+    <!-- 타이틀을 없애고 버튼들로만 화면을 꽉 채우는 2열 수직 구조 -->
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="80dp"
-        android:text="⏰ 운동 알람 맞추기"
-        android:textSize="20sp"
-        android:textColor="@color/white"
-        android:textStyle="bold"
-        android:backgroundTint="#FF9800"
-        app:layout_constraintTop_toBottomOf="@+id/btnStart1"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginTop="12dp"/>
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:weightSum="2">
 
-    <Button
-        android:id="@+id/btnSetMedicationAlarm"
-        android:layout_width="match_parent"
-        android:layout_height="80dp"
-        android:text="💊 복약 알람 맞추기"
-        android:textSize="20sp"
-        android:textColor="@color/white"
-        android:textStyle="bold"
-        android:backgroundTint="#4CAF50"
-        app:layout_constraintTop_toBottomOf="@+id/btnSetAlarm"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginTop="12dp"/>
+        <!-- 상단: 1단계, 2단계 게임 (블루/퍼플 네온 테두리) -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="horizontal"
+            android:paddingBottom="16dp">
 
-    <Button
-        android:id="@+id/btnCancelAllAlarms"
-        android:layout_width="match_parent"
-        android:layout_height="80dp"
-        android:text="🚫 모든 알람 취소"
-        android:textSize="20sp"
-        android:textColor="@color/white"
-        android:textStyle="bold"
-        android:backgroundTint="#F44336"
-        app:layout_constraintTop_toBottomOf="@+id/btnSetMedicationAlarm"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginTop="12dp"/>
+            <Button
+                android:id="@+id/btnStart1"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:layout_marginEnd="16dp"
+                android:text="🎵\n1단계 시작"
+                android:textSize="32sp"
+                android:textColor="#4DB8FF"
+                android:textStyle="bold"
+                android:backgroundTint="#20232E"
+                app:strokeWidth="2dp"
+                app:strokeColor="#4DB8FF"
+                app:cornerRadius="24dp"/>
+
+            <Button
+                android:id="@+id/btnStart2"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:layout_marginStart="16dp"
+                android:text="✨\n2단계 시작"
+                android:textSize="32sp"
+                android:textColor="#B388FF"
+                android:textStyle="bold"
+                android:backgroundTint="#20232E"
+                app:strokeWidth="2dp"
+                app:strokeColor="#B388FF"
+                app:cornerRadius="24dp"/>
+        </LinearLayout>
+
+        <!-- 하단: 알람 설정 및 취소 버튼 3개 (오렌지/그린/레드 네온 테두리) -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="horizontal"
+            android:paddingTop="16dp">
+
+            <Button
+                android:id="@+id/btnSetAlarm"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:layout_marginEnd="10dp"
+                android:text="⏰\n운동 알람"
+                android:textSize="26sp"
+                android:textColor="#FFB74D"
+                android:textStyle="bold"
+                android:backgroundTint="#20232E"
+                app:strokeWidth="2dp"
+                app:strokeColor="#FFB74D"
+                app:cornerRadius="24dp"/>
+
+            <Button
+                android:id="@+id/btnSetMedicationAlarm"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:layout_marginHorizontal="10dp"
+                android:text="💊\n복약 알람"
+                android:textSize="26sp"
+                android:textColor="#81C784"
+                android:textStyle="bold"
+                android:backgroundTint="#20232E"
+                app:strokeWidth="2dp"
+                app:strokeColor="#81C784"
+                app:cornerRadius="24dp"/>
+
+            <Button
+                android:id="@+id/btnCancelAllAlarms"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:layout_marginStart="10dp"
+                android:text="🚫\n알람 취소"
+                android:textSize="26sp"
+                android:textColor="#E57373"
+                android:textStyle="bold"
+                android:backgroundTint="#20232E"
+                app:strokeWidth="2dp"
+                app:strokeColor="#E57373"
+                app:cornerRadius="24dp"/>
+        </LinearLayout>
+    </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
