@@ -1,6 +1,7 @@
 from collections import deque
 import math
 import time
+from datetime import datetime
 
 
 NOSE = 0
@@ -35,6 +36,8 @@ class FallDetector:
         self.recovery_since = None
         self.recovered_since = None
         self.last_evidence_time = 0.0
+        self.last_event = None
+        self._new_event = False
         self.center_history = deque()
         self.last_metrics = self._empty_metrics()
         return self.get_state()
@@ -43,6 +46,7 @@ class FallDetector:
         now = time.monotonic()
         metrics = self._calculate_metrics(landmarks, now)
         self.last_metrics = metrics
+        self._new_event = False
 
         strong_horizontal = (
             metrics["torso_angle"] >= STRONG_HORIZONTAL_ANGLE_DEGREES
@@ -69,6 +73,7 @@ class FallDetector:
                 if now - self.suspected_since >= FALL_CONFIRM_SECONDS:
                     self.status = "FALL_CONFIRMED"
                     self.recovery_since = None
+                    self._create_event()
             elif now - self.last_evidence_time > EVIDENCE_GRACE_SECONDS:
                 self.status = "NORMAL"
                 self.suspected_since = None
@@ -82,6 +87,8 @@ class FallDetector:
                     self.status = "RECOVERED"
                     self.recovered_since = now
                     self.suspected_since = None
+                    if self.last_event is not None:
+                        self.last_event["status"] = "CLOSED"
             else:
                 self.recovery_since = None
 
@@ -109,7 +116,31 @@ class FallDetector:
             "fall_status": self.status,
             "fall_confidence": self._confidence(),
             "fall_metrics": dict(self.last_metrics),
+            "fall_event": {
+                "new_event": self._new_event,
+                "event_id": self.last_event["event_id"] if self.last_event else None,
+                "evidence_image": self.last_event.get("evidence_image") if self.last_event else None,
+            },
         }
+
+    def attach_evidence_image(self, evidence_image: str | None) -> None:
+        if self.last_event is not None:
+            self.last_event["evidence_image"] = evidence_image
+
+    def mark_event_handled(self) -> None:
+        self._new_event = False
+
+    def _create_event(self) -> None:
+        if self.last_event and self.last_event.get("status") == "OPEN":
+            return
+
+        event_id = datetime.now().strftime("fall_%Y%m%d_%H%M%S")
+        self.last_event = {
+            "event_id": event_id,
+            "evidence_image": None,
+            "status": "OPEN",
+        }
+        self._new_event = True
 
     def _calculate_metrics(self, landmarks, now: float) -> dict:
         nose = landmarks[NOSE]
@@ -154,6 +185,7 @@ class FallDetector:
             "horizontal": horizontal,
             "low_position": low_position,
             "sudden_drop": sudden_drop,
+            "rapid_drop": sudden_drop,
         }
 
     def _confidence(self) -> float:
@@ -179,4 +211,5 @@ class FallDetector:
             "horizontal": False,
             "low_position": False,
             "sudden_drop": False,
+            "rapid_drop": False,
         }

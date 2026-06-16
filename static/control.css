@@ -1,0 +1,202 @@
+:root {
+  color-scheme: light;
+  font-family: Arial, "Noto Sans KR", sans-serif;
+  color: #17211c;
+  background: #f4f6f5;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px max(18px, calc((100% - 920px) / 2));
+  color: #ffffff;
+  background: #173f35;
+}
+
+h1,
+h2,
+p {
+  margin: 0;
+}
+
+h1 {
+  font-size: 1.35rem;
+}
+
+h2 {
+  margin-bottom: 16px;
+  font-size: 1.05rem;
+}
+
+.topbar p {
+  margin-top: 5px;
+  color: #cfe1da;
+  font-size: 0.82rem;
+}
+
+main {
+  width: min(100%, 920px);
+  margin: 0 auto;
+  padding: 18px;
+}
+
+section {
+  padding: 20px 0;
+  border-bottom: 1px solid #d5dcd8;
+}
+
+.status-grid,
+.counts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  overflow: hidden;
+  border: 1px solid #cbd5d0;
+  border-radius: 6px;
+  background: #cbd5d0;
+}
+
+.status-grid div,
+.counts div {
+  min-width: 0;
+  padding: 14px;
+  background: #ffffff;
+}
+
+.status-grid span,
+.counts span,
+.result-row span {
+  display: block;
+  margin-bottom: 7px;
+  color: #5b6862;
+  font-size: 0.78rem;
+}
+
+.status-grid strong,
+.counts strong,
+.result-row strong {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: 0.98rem;
+}
+
+.controls label {
+  display: block;
+  margin: 12px 0 6px;
+  color: #46534d;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.controls input {
+  width: 100%;
+  min-height: 44px;
+  padding: 9px 11px;
+  border: 1px solid #aebbb5;
+  border-radius: 5px;
+  background: #ffffff;
+}
+
+.button-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 18px;
+}
+
+button {
+  min-height: 46px;
+  padding: 10px 13px;
+  border: 1px solid #176c56;
+  border-radius: 5px;
+  color: #ffffff;
+  background: #176c56;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+button.secondary {
+  border-color: #53645c;
+  background: #53645c;
+}
+
+button.danger {
+  border-color: #a22d25;
+  background: #a22d25;
+}
+
+button:disabled {
+  border-color: #aab2ae;
+  color: #6f7873;
+  background: #dfe3e1;
+  cursor: not-allowed;
+}
+
+#commandMessage {
+  min-height: 22px;
+  margin-top: 12px;
+  color: #285b4c;
+  font-size: 0.88rem;
+}
+
+.result-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 2px;
+  border-bottom: 1px solid #dbe1de;
+}
+
+.result-row span {
+  margin: 0;
+}
+
+.error-band p {
+  min-height: 44px;
+  padding: 12px;
+  border-left: 4px solid #bd4339;
+  background: #fff4f2;
+  overflow-wrap: anywhere;
+}
+
+.is-good {
+  color: #08754f;
+}
+
+.is-warning {
+  color: #9a5714;
+}
+
+.is-danger {
+  color: #b12820;
+}
+
+@media (max-width: 640px) {
+  .topbar {
+    align-items: flex-start;
+  }
+
+  .status-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .counts {
+    grid-template-columns: 1fr;
+  }
+}
