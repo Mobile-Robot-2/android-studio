@@ -3,16 +3,27 @@ package com.temi.rhythmgame;
 import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.ImageFormat;
+import android.graphics.Rect;
+import android.graphics.YuvImage;
+import android.media.Image;
 import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
+import android.util.Size;
 import android.view.View;
+import android.widget.Button;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.OptIn;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.camera.core.CameraInfoUnavailableException;
 import androidx.camera.core.CameraSelector;
+import androidx.camera.core.ExperimentalGetImage;
+import androidx.camera.core.ImageAnalysis;
+import androidx.camera.core.ImageProxy;
 import androidx.camera.core.Preview;
 import androidx.camera.lifecycle.ProcessCameraProvider;
 import androidx.camera.view.PreviewView;
@@ -24,16 +35,32 @@ import com.robotemi.sdk.BatteryData;
 import com.robotemi.sdk.Robot;
 import com.robotemi.sdk.listeners.OnBatteryStatusChangedListener;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.MediaType;
+import okhttp3.MultipartBody;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
 
 public class MainActivity extends AppCompatActivity implements OnBatteryStatusChangedListener {
 
     private static final String TAG = "MainActivity";
+    private static final String SERVER_URL = "http://172.20.10.4:8000";
     private static final int REQUEST_CAMERA_PERMISSION = 100;
     private FillVideoView videoView;
+    private TextView textStatus;
     private PreviewView previewView;
     private String gameStartTimeStr;
     private String gameEndTimeStr;
@@ -42,6 +69,11 @@ public class MainActivity extends AppCompatActivity implements OnBatteryStatusCh
     private Robot robot;
 
     private int currentVideoType = 1;
+    private ExecutorService cameraExecutor;
+    private boolean mirrorOverlay = true;
+    private final OkHttpClient client = new OkHttpClient();
+
+    private long lastSendTime = 0;
 
     // ───────────────── 생명주기 ──────────────────────────────────────────
 
@@ -56,6 +88,15 @@ public class MainActivity extends AppCompatActivity implements OnBatteryStatusCh
 
         videoView   = findViewById(R.id.videoView);
         previewView = findViewById(R.id.previewView);
+        cameraExecutor = Executors.newSingleThreadExecutor();
+
+        textStatus = findViewById(R.id.textStatus);
+
+        Button btnStart = findViewById(R.id.btnStart);
+        btnStart.setOnClickListener(v -> {
+            resetGameState();
+            textStatus.setText("게임 시작!");
+        });
 
         setupVideo();
 
@@ -111,6 +152,9 @@ public class MainActivity extends AppCompatActivity implements OnBatteryStatusCh
     protected void onDestroy() {
         super.onDestroy();
         if (videoView != null && videoView.isPlaying()) videoView.stopPlayback();
+        if (cameraExecutor != null) {
+            cameraExecutor.shutdown();
+        }
     }
 
     // ───────────────── 전체화면 ──────────────────────────────────────────
@@ -182,37 +226,166 @@ public class MainActivity extends AppCompatActivity implements OnBatteryStatusCh
     // ───────────────── 카메라 ────────────────────────────────────────────
 
     private void startCamera() {
-        // Bug Fix: getInstance()를 한 번만 호출하고 future 객체를 재사용
-        ListenableFuture<ProcessCameraProvider> future =
+        ListenableFuture<ProcessCameraProvider> cameraProviderFuture =
                 ProcessCameraProvider.getInstance(this);
 
-        future.addListener(() -> {
+        cameraProviderFuture.addListener(() -> {
             try {
-                ProcessCameraProvider provider = future.get();
-
-                boolean hasFront = false;
-                try {
-                    hasFront = provider.hasCamera(CameraSelector.DEFAULT_FRONT_CAMERA);
-                } catch (CameraInfoUnavailableException e) {
-                    Log.w(TAG, "전면 카메라 확인 실패, 후면으로 전환");
-                }
-
-                CameraSelector selector = hasFront
-                        ? CameraSelector.DEFAULT_FRONT_CAMERA
-                        : CameraSelector.DEFAULT_BACK_CAMERA;
+                ProcessCameraProvider cameraProvider = cameraProviderFuture.get();
 
                 Preview preview = new Preview.Builder().build();
                 preview.setSurfaceProvider(previewView.getSurfaceProvider());
 
-                provider.unbindAll();
-                provider.bindToLifecycle(this, selector, preview);
-                Log.d(TAG, "카메라 시작 (" + (hasFront ? "전면" : "후면") + ")");
+                ImageAnalysis imageAnalysis = new ImageAnalysis.Builder()
+                        .setTargetResolution(new Size(640, 480))
+                        .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                        .build();
+                imageAnalysis.setAnalyzer(cameraExecutor, this::analyzeImage);
 
+                CameraSelector cameraSelector = getAvailableCameraSelector(cameraProvider);
+
+                cameraProvider.unbindAll();
+                cameraProvider.bindToLifecycle(
+                        this,
+                        cameraSelector,
+                        preview,
+                        imageAnalysis
+                );
             } catch (ExecutionException | InterruptedException e) {
-                Log.e(TAG, "카메라 초기화 실패", e);
-                Toast.makeText(this, "카메라를 사용할 수 없습니다.", Toast.LENGTH_SHORT).show();
+                textStatus.setText(getString(R.string.pose_failed, e.getMessage()));
+            } catch (CameraInfoUnavailableException | IllegalArgumentException e) {
+                textStatus.setText(getString(R.string.pose_failed, "사용 가능한 카메라를 찾을 수 없습니다."));
             }
         }, ContextCompat.getMainExecutor(this));
+    }
+
+    private CameraSelector getAvailableCameraSelector(ProcessCameraProvider cameraProvider)
+            throws CameraInfoUnavailableException {
+        if (cameraProvider.hasCamera(CameraSelector.DEFAULT_FRONT_CAMERA)) {
+            mirrorOverlay = true;
+            return CameraSelector.DEFAULT_FRONT_CAMERA;
+        }
+
+        mirrorOverlay = false;
+        return CameraSelector.DEFAULT_BACK_CAMERA;
+    }
+
+    @OptIn(markerClass = ExperimentalGetImage.class)
+    private void analyzeImage(ImageProxy imageProxy) {
+        Image mediaImage = imageProxy.getImage();
+
+        if (mediaImage == null) {
+            imageProxy.close();
+            return;
+        }
+
+        if (System.currentTimeMillis() - lastSendTime < 500) {
+            imageProxy.close();
+            return;
+        }
+
+        lastSendTime = System.currentTimeMillis();
+
+        try {
+            byte[] nv21 = imageProxyToNV21(imageProxy);
+
+            YuvImage yuvImage = new YuvImage(
+                    nv21,
+                    ImageFormat.NV21,
+                    imageProxy.getWidth(),
+                    imageProxy.getHeight(),
+                    null
+            );
+
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+
+            yuvImage.compressToJpeg(
+                    new Rect(0, 0, imageProxy.getWidth(), imageProxy.getHeight()),
+                    60,
+                    out
+            );
+
+            byte[] jpegBytes = out.toByteArray();
+            sendImageToServer(jpegBytes);
+
+        } catch (Exception e) {
+            runOnUiThread(() ->
+                    textStatus.setText("Image convert failed\n" + e.getMessage())
+            );
+        } finally {
+            imageProxy.close();
+        }
+    }
+
+    private void sendImageToServer(byte[] jpegBytes) {
+        RequestBody imageBody = RequestBody.create(
+                MediaType.parse("image/jpeg"),
+                jpegBytes
+        );
+
+        MultipartBody requestBody = new MultipartBody.Builder()
+                .setType(MultipartBody.FORM)
+                .addFormDataPart("file", "frame.jpg", imageBody)
+                .build();
+
+        Request request = new Request.Builder()
+                .url(SERVER_URL + "/analyze")
+                .post(requestBody)
+                .build();
+
+        client.newCall(request).enqueue(new Callback() {
+
+            @Override
+            public void onFailure(Call call, IOException e) {
+                Log.e("SERVER_ERROR", e.getMessage());
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                String result = response.body().string();
+                Log.d("SERVER_RESPONSE", result);
+            }
+        });
+    }
+
+    private void resetGameState() {
+        RequestBody body = RequestBody.create(
+                MediaType.parse("text/plain"),
+                ""
+        );
+
+        Request request = new Request.Builder()
+                .url(SERVER_URL + "/reset")
+                .post(body)
+                .build();
+
+        client.newCall(request).enqueue(new Callback() {
+
+            @Override
+            public void onFailure(Call call, IOException e) {
+                runOnUiThread(() ->
+                        textStatus.setText("게임 시작 실패\n" + e.getMessage()));
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                runOnUiThread(() -> textStatus.setText("게임 시작!"));
+            }
+        });
+    }
+
+    private byte[] imageProxyToNV21(ImageProxy image) {
+        ByteBuffer yBuffer = image.getPlanes()[0].getBuffer();
+        ByteBuffer uBuffer = image.getPlanes()[1].getBuffer();
+        ByteBuffer vBuffer = image.getPlanes()[2].getBuffer();
+        int ySize = yBuffer.remaining();
+        int uSize = uBuffer.remaining();
+        int vSize = vBuffer.remaining();
+        byte[] nv21 = new byte[ySize + uSize + vSize];
+        yBuffer.get(nv21, 0, ySize);
+        vBuffer.get(nv21, ySize, vSize);
+        uBuffer.get(nv21, ySize + vSize, uSize);
+        return nv21;
     }
 
     // ───────────────── 카메라 권한 ───────────────────────────────────────
