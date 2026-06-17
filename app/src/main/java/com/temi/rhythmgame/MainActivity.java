@@ -172,6 +172,13 @@ public class MainActivity extends AppCompatActivity implements OnBatteryStatusCh
         finish();
     }
 
+    // ───────────────── 포즈 분석 ─────────────────────────────────────────
+
+    public void startPoseAnalysis() {
+        Intent intent = new Intent(this, PoseAnalysisActivity.class);
+        startActivity(intent);
+    }
+
     // ───────────────── 카메라 ────────────────────────────────────────────
 
     private void startCamera() {

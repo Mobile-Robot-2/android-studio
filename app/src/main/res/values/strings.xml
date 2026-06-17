@@ -8,4 +8,6 @@
     <string name="calculating">결과를 계산하고 있어요!</string>
     <string name="feedback_placeholder">[LLM 피드백 자리]</string>
     <string name="btn_restart">다시 하기</string>
+    <string name="pose_camera_permission">카메라 권한이 필요합니다.</string>
+    <string name="pose_failed">카메라 오류: %s</string>
 </resources>
