@@ -3,6 +3,7 @@ package com.temi.rhythmgame;
 import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.drawable.AnimationDrawable;
 import android.os.Bundle;
 import android.os.CountDownTimer;
 import android.os.Handler;
@@ -12,6 +13,7 @@ import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.camera.lifecycle.ProcessCameraProvider;
+import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.core.content.ContextCompat;
 
 import java.util.ArrayList;
@@ -60,6 +62,15 @@ public class PrepareActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_prepare);
+
+        // ⭐️ 배경 애니메이션 실행 코드
+        ConstraintLayout rootLayout = findViewById(R.id.rootLayout);
+        if (rootLayout != null && rootLayout.getBackground() instanceof AnimationDrawable) {
+            AnimationDrawable animationDrawable = (AnimationDrawable) rootLayout.getBackground();
+            animationDrawable.setEnterFadeDuration(2000);
+            animationDrawable.setExitFadeDuration(4000);
+            animationDrawable.start();
+        }
 
         // ⭐️ StartActivity가 보낸 videoType 받기 (기본값은 1)
         selectedVideoType = getIntent().getIntExtra("videoType", 1);

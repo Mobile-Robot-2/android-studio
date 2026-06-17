@@ -2,54 +2,56 @@
 <androidx.constraintlayout.widget.ConstraintLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:layout_width="match_parent"
+    android:id="@+id/rootLayout" android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/bg_dark">
+    android:background="@drawable/bg_animated_sunset"> <com.google.android.material.card.MaterialCardView
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:minWidth="600dp" app:cardBackgroundColor="#CC161824"
+    app:cardCornerRadius="40dp"
+    app:cardElevation="16dp"
+    app:strokeColor="#4DFFFFFF"
+    app:strokeWidth="2dp"
+    app:layout_constraintTop_toTopOf="parent"
+    app:layout_constraintBottom_toBottomOf="parent"
+    app:layout_constraintStart_toStartOf="parent"
+    app:layout_constraintEnd_toEndOf="parent">
 
-    <!-- 상단 제목 -->
-    <TextView
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:padding="56dp"> <TextView
         android:id="@+id/tvTitle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="게임을 준비하고 있어요!"
-        android:textSize="36sp"
-        android:textColor="@color/white"
+        android:textSize="40sp"
+        android:textColor="#FFFFFF"
         android:textStyle="bold"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintBottom_toTopOf="@+id/tvCountdown"
-        app:layout_constraintVertical_chainStyle="packed"
-        android:layout_marginBottom="16dp" />
+        android:layout_marginBottom="24dp" />
 
-    <!-- 카운트다운 숫자 -->
-    <TextView
-        android:id="@+id/tvCountdown"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="10"
-        android:textSize="96sp"
-        android:textColor="@color/accent_yellow"
-        android:textStyle="bold"
-        app:layout_constraintTop_toBottomOf="@+id/tvTitle"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintBottom_toTopOf="@+id/tvCheckLog"
-        android:layout_marginBottom="16dp" />
+        <TextView
+            android:id="@+id/tvCountdown"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="10"
+            android:textSize="120sp"
+            android:textColor="#FFD54F" android:textStyle="bold"
+            android:layout_marginBottom="32dp" />
 
-    <!-- 체크 결과 로그 (항목이 추가될수록 줄이 늘어남) -->
-    <TextView
-        android:id="@+id/tvCheckLog"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text=""
-        android:textSize="22sp"
-        android:textColor="@color/text_gray"
-        android:lineSpacingExtra="6dp"
-        android:gravity="start"
-        app:layout_constraintTop_toBottomOf="@+id/tvCountdown"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent" />
+        <TextView
+            android:id="@+id/tvCheckLog"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:minWidth="350dp" android:text=""
+            android:textSize="26sp"
+            android:textColor="#BDBDBD"
+            android:lineSpacingExtra="10dp"
+            android:gravity="start" />
+
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -1,9 +1,11 @@
 package com.temi.rhythmgame;
 
+import android.graphics.drawable.AnimationDrawable;
 import android.os.Bundle;
 import android.view.WindowManager;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.constraintlayout.widget.ConstraintLayout;
 
 import com.robotemi.sdk.Robot;
 import com.robotemi.sdk.TtsRequest;
@@ -16,6 +18,15 @@ public class BatteryReturnActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_battery_return);
+
+        // ⭐️ 배경 애니메이션 실행 코드
+        ConstraintLayout rootLayout = findViewById(R.id.rootLayout);
+        if (rootLayout != null && rootLayout.getBackground() instanceof AnimationDrawable) {
+            AnimationDrawable animationDrawable = (AnimationDrawable) rootLayout.getBackground();
+            animationDrawable.setEnterFadeDuration(2000);
+            animationDrawable.setExitFadeDuration(4000);
+            animationDrawable.start();
+        }
 
         // 화면 켜짐 유지
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);

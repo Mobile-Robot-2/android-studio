@@ -1,6 +1,7 @@
 package com.temi.rhythmgame;
 
 import android.content.Intent;
+import android.graphics.drawable.AnimationDrawable;
 import android.os.Bundle;
 import android.os.CountDownTimer;
 import android.util.Log;
@@ -13,6 +14,7 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.constraintlayout.widget.ConstraintLayout;
 
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
@@ -47,6 +49,16 @@ public class ResultActivity extends AppCompatActivity {
                 | WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON);
 
         setContentView(R.layout.activity_result);
+
+        // ⭐️ 배경 애니메이션 실행 코드
+        ConstraintLayout rootLayout = findViewById(R.id.rootLayout);
+        if (rootLayout != null && rootLayout.getBackground() instanceof AnimationDrawable) {
+            AnimationDrawable animationDrawable = (AnimationDrawable) rootLayout.getBackground();
+            animationDrawable.setEnterFadeDuration(2000);
+            animationDrawable.setExitFadeDuration(4000);
+            animationDrawable.start();
+        }
+
         Log.d(TAG, "ResultActivity 생성됨 - 결과 계산 시작");
 
         robot = Robot.getInstance(); // 로봇 초기화

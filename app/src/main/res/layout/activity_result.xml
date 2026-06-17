@@ -2,11 +2,10 @@
 <androidx.constraintlayout.widget.ConstraintLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/rootLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#15171E"> <!-- 앞서 선택한 깊고 차분한 다크 배경 -->
-
-    <!-- ─── 로딩 화면 (초기 10초 표시) ─── -->
+    android:background="@drawable/bg_animated_sunset">
 
     <TextView
         android:id="@+id/tvLoading"
@@ -23,28 +22,23 @@
         app:layout_constraintVertical_chainStyle="packed"
         android:layout_marginBottom="32dp"/>
 
-    <!-- 빙글빙글 도는 로딩 아이콘 (네온 블루 색상 적용) -->
     <ProgressBar
         android:id="@+id/progressBar"
         android:layout_width="100dp"
         android:layout_height="100dp"
-        android:indeterminateTint="#4DB8FF"
+        android:indeterminateTint="#FFD54F"
         app:layout_constraintTop_toBottomOf="@+id/tvLoading"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"/>
 
-
-    <!-- ─── 결과 화면 (10초 후 표시) ─── -->
-
-    <!-- 최종 점수 (가장 눈에 띄는 황금/노란색 계열) -->
     <TextView
         android:id="@+id/tvScore"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="최종 점수: 7/10"
         android:textSize="64sp"
-        android:textColor="#FFD700"
+        android:textColor="#FFD54F"
         android:textStyle="bold"
         android:visibility="gone"
         app:layout_constraintTop_toTopOf="parent"
@@ -54,7 +48,6 @@
         app:layout_constraintVertical_chainStyle="packed"
         android:layout_marginBottom="24dp"/>
 
-    <!-- LLM 피드백 자리 (가로 화면에서 가독성을 위해 너비 제한 및 중앙 정렬) -->
     <TextView
         android:id="@+id/tvFeedback"
         android:layout_width="0dp"
@@ -72,7 +65,6 @@
         app:layout_constraintBottom_toTopOf="@+id/btnRestart"
         android:layout_marginBottom="48dp"/>
 
-    <!-- 다시 하기 버튼 (시작 버튼과 동일한 네온 블루 보더라인 스타일) -->
     <Button
         android:id="@+id/btnRestart"
         android:layout_width="360dp"
@@ -81,9 +73,10 @@
         android:textSize="32sp"
         android:textColor="#4DB8FF"
         android:textStyle="bold"
-        android:backgroundTint="#20232E"
+        android:backgroundTint="#CC161824"
+        android:elevation="12dp"
         app:strokeWidth="2dp"
-        app:strokeColor="#4DB8FF"
+        app:strokeColor="#4DFFFFFF"
         app:cornerRadius="24dp"
         android:visibility="gone"
         app:layout_constraintTop_toBottomOf="@+id/tvFeedback"
