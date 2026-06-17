@@ -1,5 +1,6 @@
 package com.temi.rhythmgame;
 
+import android.graphics.drawable.AnimationDrawable;
 import android.util.Log;
 import android.os.Bundle;
 import android.os.CountDownTimer;
@@ -8,6 +9,7 @@ import android.widget.Button;
 import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.constraintlayout.widget.ConstraintLayout;
 
 import com.robotemi.sdk.Robot;
 import com.robotemi.sdk.TtsRequest;
@@ -38,6 +40,15 @@ public class MedicationActivity extends AppCompatActivity {
         );
 
         setContentView(R.layout.activity_medication);
+
+        // ⭐️ 배경 애니메이션 실행 코드
+        ConstraintLayout rootLayout = findViewById(R.id.rootLayout);
+        if (rootLayout != null && rootLayout.getBackground() instanceof AnimationDrawable) {
+            AnimationDrawable animationDrawable = (AnimationDrawable) rootLayout.getBackground();
+            animationDrawable.setEnterFadeDuration(2000);
+            animationDrawable.setExitFadeDuration(4000);
+            animationDrawable.start();
+        }
 
         robot = Robot.getInstance();
 

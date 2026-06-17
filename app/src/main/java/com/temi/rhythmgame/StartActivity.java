@@ -2,12 +2,14 @@ package com.temi.rhythmgame;
 
 import android.app.TimePickerDialog;
 import android.content.Intent;
+import android.graphics.drawable.AnimationDrawable;
 import android.os.Bundle;
 import android.util.Log;
 import android.widget.Button;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.constraintlayout.widget.ConstraintLayout;
 
 import java.util.Calendar;
 
@@ -25,6 +27,16 @@ public class StartActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_start);
+
+        // ⭐️ 배경 애니메이션 실행 코드
+        ConstraintLayout rootLayout = findViewById(R.id.rootLayout);
+        AnimationDrawable animationDrawable = (AnimationDrawable) rootLayout.getBackground();
+
+        // 자연스럽게 번지도록 페이드 인/아웃 시간을 2초/4초로 넉넉하게 부여
+        animationDrawable.setEnterFadeDuration(2000);
+        animationDrawable.setExitFadeDuration(4000);
+        animationDrawable.start();
+
         Log.d(TAG, "StartActivity 생성됨");
 
         // 1. 기존 게임 시작 버튼
