@@ -5,7 +5,7 @@
     android:id="@+id/rootLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:padding="24dp" android:background="@drawable/bg_animated_sunset">
+    android:padding="32dp" android:background="@drawable/bg_animated_sunset">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -18,36 +18,34 @@
             android:layout_height="0dp"
             android:layout_weight="1"
             android:orientation="horizontal"
-            android:paddingBottom="12dp" android:clipToPadding="false">
+            android:layout_marginBottom="12dp" android:clipToPadding="false">
 
             <Button
                 android:id="@+id/btnStart1"
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
                 android:layout_weight="1"
-                android:layout_marginEnd="12dp" android:text="🎵\n1단계 시작"
-                android:textSize="36sp" android:textColor="#FFFFFF"
+                android:layout_marginEnd="12dp" android:text="🎵\n리듬게임\n1단계 시작"
+                android:textSize="44sp" android:textColor="#FFFFFF"
                 android:textStyle="bold"
                 android:backgroundTint="#CC161824"
                 android:elevation="12dp"
-                app:strokeWidth="2dp"
-                app:strokeColor="#4DFFFFFF"
-                app:cornerRadius="24dp"/>
-
-            <Button
-                android:id="@+id/btnStart2"
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
-                android:layout_weight="1"
-                android:layout_marginStart="12dp" android:text="✨\n2단계 시작"
-                android:textSize="36sp"
-                android:textColor="#FFFFFF"
-                android:textStyle="bold"
-                android:backgroundTint="#CC161824"
-                android:elevation="12dp"
-                app:strokeWidth="2dp"
-                app:strokeColor="#4DFFFFFF"
-                app:cornerRadius="24dp"/>
+                app:strokeWidth="3dp" app:strokeColor="#4DFFFFFF"
+                app:cornerRadius="32dp"/> <Button
+            android:id="@+id/btnStart2"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:layout_marginStart="12dp"
+            android:text="✨\n리듬게임\n2단계 시작"
+            android:textSize="44sp"
+            android:textColor="#FFFFFF"
+            android:textStyle="bold"
+            android:backgroundTint="#CC161824"
+            android:elevation="12dp"
+            app:strokeWidth="3dp"
+            app:strokeColor="#4DFFFFFF"
+            app:cornerRadius="32dp"/>
         </LinearLayout>
 
         <LinearLayout
@@ -55,53 +53,54 @@
             android:layout_height="0dp"
             android:layout_weight="1"
             android:orientation="horizontal"
-            android:paddingTop="12dp" android:clipToPadding="false">
+            android:layout_marginTop="12dp" android:clipToPadding="false">
 
             <Button
                 android:id="@+id/btnSetAlarm"
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
                 android:layout_weight="1"
-                android:layout_marginEnd="8dp" android:text="⏰\n운동 알람"
-                android:textSize="28sp"
-                android:textColor="#FFD54F"
+                android:layout_marginEnd="12dp"
+                android:text="⏰\n운동 알람"
+                android:textSize="32sp" android:textColor="#FFD54F"
                 android:textStyle="bold"
                 android:backgroundTint="#CC161824"
                 android:elevation="12dp"
-                app:strokeWidth="2dp"
+                app:strokeWidth="3dp"
                 app:strokeColor="#4DFFFFFF"
-                app:cornerRadius="24dp"/>
+                app:cornerRadius="32dp"/>
 
             <Button
                 android:id="@+id/btnSetMedicationAlarm"
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
                 android:layout_weight="1"
-                android:layout_marginHorizontal="8dp" android:text="💊\n복약 알람"
-                android:textSize="28sp"
+                android:layout_marginStart="12dp"
+                android:layout_marginEnd="12dp" android:text="💊\n복약 알람"
+                android:textSize="32sp"
                 android:textColor="#81C784"
                 android:textStyle="bold"
                 android:backgroundTint="#CC161824"
                 android:elevation="12dp"
-                app:strokeWidth="2dp"
+                app:strokeWidth="3dp"
                 app:strokeColor="#4DFFFFFF"
-                app:cornerRadius="24dp"/>
+                app:cornerRadius="32dp"/>
 
             <Button
                 android:id="@+id/btnCancelAllAlarms"
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
                 android:layout_weight="1"
-                android:layout_marginStart="8dp"
+                android:layout_marginStart="12dp"
                 android:text="🚫\n알람 취소"
-                android:textSize="28sp"
+                android:textSize="32sp"
                 android:textColor="#E57373"
                 android:textStyle="bold"
                 android:backgroundTint="#CC161824"
                 android:elevation="12dp"
-                app:strokeWidth="2dp"
+                app:strokeWidth="3dp"
                 app:strokeColor="#4DFFFFFF"
-                app:cornerRadius="24dp"/>
+                app:cornerRadius="32dp"/>
         </LinearLayout>
     </LinearLayout>
 
