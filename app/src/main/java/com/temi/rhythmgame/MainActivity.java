@@ -41,6 +41,8 @@ public class MainActivity extends AppCompatActivity implements OnBatteryStatusCh
 
     private Robot robot;
 
+    private int currentVideoType = 1;
+
     // ───────────────── 생명주기 ──────────────────────────────────────────
 
     @Override
@@ -129,6 +131,7 @@ public class MainActivity extends AppCompatActivity implements OnBatteryStatusCh
     private void setupVideo() {
         // ⭐️ 1. PrepareActivity로부터 전달받은 비디오 타입 번호 꺼내기 (기본값은 1)
         int videoType = getIntent().getIntExtra("videoType", 1);
+        this.currentVideoType = videoType;
         Log.d(TAG, "선택된 비디오 타입: " + videoType);
 
         // ⭐️ 2. 번호에 따라 재생할 raw 파일 동적으로 선택
@@ -164,6 +167,7 @@ public class MainActivity extends AppCompatActivity implements OnBatteryStatusCh
         Intent intent = new Intent(MainActivity.this, ResultActivity.class);
         intent.putExtra("startTime", gameStartTimeStr);
         intent.putExtra("endTime", gameEndTimeStr);
+        intent.putExtra("gameLevel", currentVideoType);
         startActivity(intent);
         finish();
     }

@@ -25,6 +25,10 @@ import com.google.firebase.database.ValueEventListener;
 import com.robotemi.sdk.Robot;
 import com.robotemi.sdk.TtsRequest;
 
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
+
 /**
  * ResultActivity - 결과 화면
  *
@@ -35,22 +39,41 @@ public class ResultActivity extends AppCompatActivity {
 
     private static final String TAG = "ResultActivity";
     private CountDownTimer loadingTimer;
-    private int finalCalculatedScore = 0;
-    private int totalTouchCount = 0;
 
-    private Robot robot; // 로봇 객체 선언
+    private int finalCalculatedScore = 0; // 100점 만점 기준 점수
+    private int totalTouchCount = 0;      // 단순 센서 터치 횟수
+    private int hitCount = 0;             // 정답 구간 내 터치 성공 횟수
+
+    private Robot robot;
+
+    // ⭐️ 영상 1 정답 구간 (단위: 초)
+    private final double[][] LEVEL_1_WINDOWS = {
+            {2.0, 8.0},   // 왼손 드세요
+            {8.0, 13.0},  // 오른손 드세요
+            {13.0, 19.0}, // 버튼을 누르세요
+            {19.0, 24.0}, // 왼손을 드세요
+            {24.0, 27.0}, // 왼손을 드세요
+            {27.0, 33.0}  // 오른손 드세요
+    };
+
+    // ⭐️ 영상 2 정답 구간 (단위: 초)
+    private final double[][] LEVEL_2_WINDOWS = {
+            {3.0, 9.0},   // 박수 짝짝
+            {9.0, 14.0},  // 왼손 들기
+            {14.0, 19.0}, // 오른손 들기
+            {19.0, 24.0}, // 버튼을 누르세요
+            {24.0, 29.0}, // 박수 짝짝
+            {29.0, 33.0}  // 오른손 들기
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
-        // 화면 꺼짐 방지: 10초 대기 중 화면이 꺼지는 불상사 방지
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
                 | WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON);
-
         setContentView(R.layout.activity_result);
 
-        // ⭐️ 배경 애니메이션 실행 코드
+        // 배경 애니메이션 실행
         ConstraintLayout rootLayout = findViewById(R.id.rootLayout);
         if (rootLayout != null && rootLayout.getBackground() instanceof AnimationDrawable) {
             AnimationDrawable animationDrawable = (AnimationDrawable) rootLayout.getBackground();
@@ -59,70 +82,61 @@ public class ResultActivity extends AppCompatActivity {
             animationDrawable.start();
         }
 
-        Log.d(TAG, "ResultActivity 생성됨 - 결과 계산 시작");
+        robot = Robot.getInstance();
 
-        robot = Robot.getInstance(); // 로봇 초기화
-
-        // 뷰 참조
-        TextView  tvLoading   = findViewById(R.id.tvLoading);
+        TextView tvLoading = findViewById(R.id.tvLoading);
         ProgressBar progressBar = findViewById(R.id.progressBar);
-        TextView  tvScore     = findViewById(R.id.tvScore);
-        TextView  tvFeedback  = findViewById(R.id.tvFeedback);
-        Button    btnRestart  = findViewById(R.id.btnRestart);
+        TextView tvScore = findViewById(R.id.tvScore);
+        TextView tvFeedback = findViewById(R.id.tvFeedback);
+        Button btnRestart = findViewById(R.id.btnRestart);
 
-        // 초기 상태: 결과 숨기고 로딩 화면만 표시
         tvScore.setVisibility(View.GONE);
         tvFeedback.setVisibility(View.GONE);
         btnRestart.setVisibility(View.GONE);
 
-        // MainActivity에서 전달받은 시간 구간
+        // MainActivity로부터 값 수신 (gameLevel 추가)
         String gameStartTime = getIntent().getStringExtra("startTime");
         String gameEndTime = getIntent().getStringExtra("endTime");
+        int gameLevel = getIntent().getIntExtra("gameLevel", 1); // 기본값 1
 
-        Log.d(TAG, "점수 계산 구간: " + gameStartTime + " ~ " + gameEndTime);
+        Log.d(TAG, "게임 레벨: " + gameLevel + " / 점수 계산 구간: " + gameStartTime + " ~ " + gameEndTime);
 
-        // Firebase 데이터 비동기 호출 시작
-        fetchFirebaseDataAndCalculate(gameStartTime, gameEndTime);
+        // Firebase 데이터 호출 및 점수 계산
+        fetchFirebaseDataAndCalculate(gameStartTime, gameEndTime, gameLevel);
 
-        // 10초 로딩 타이머 시작
+        // 10초 로딩 타이머
         loadingTimer = new CountDownTimer(10000, 1000) {
-
             @Override
             public void onTick(long millisUntilFinished) {
-                int secondsLeft = (int) (millisUntilFinished / 1000);
-                Log.d(TAG, "결과 계산 중... " + secondsLeft + "초 남음");
+                Log.d(TAG, "결과 계산 중... " + (millisUntilFinished / 1000) + "초 남음");
             }
 
             @Override
             public void onFinish() {
-                // 로딩 숨기기
                 tvLoading.setVisibility(View.GONE);
                 progressBar.setVisibility(View.GONE);
 
-                // UI 업데이트
-                tvScore.setText("최종 점수: " + finalCalculatedScore + " (총 터치: " + totalTouchCount + ")");
+                // UI 업데이트 (성공 횟수에 비례한 100점 만점 점수)
+                tvScore.setText("최종 점수: " + finalCalculatedScore + "점\n(정답: " + hitCount + "/6)");
                 tvScore.setVisibility(View.VISIBLE);
 
-                tvFeedback.setText("리듬감이 아주 훌륭합니다!");
+                // 피드백 문구 동적 생성
+                String feedbackMsg = finalCalculatedScore >= 80 ? "리듬감이 아주 훌륭합니다! 완벽해요!" :
+                        finalCalculatedScore >= 50 ? "좋아요! 조금만 더 연습하면 완벽해질 거예요." :
+                                "끝까지 포기하지 않은 모습이 멋집니다!";
+                tvFeedback.setText(feedbackMsg);
                 tvFeedback.setVisibility(View.VISIBLE);
                 btnRestart.setVisibility(View.VISIBLE);
 
-                // TTS 음성 출력 추가 (점수 동적 바인딩)
-                String ttsMessage = "최종 점수는 " + finalCalculatedScore + "점입니다. 정말 수고하셨습니다!";
+                String ttsMessage = "최종 점수는 " + finalCalculatedScore + "점입니다. 수고하셨습니다!";
                 robot.speak(TtsRequest.create(ttsMessage, false));
 
-                // 데모 시나리오 일치화: 결과 출력 후 홈 베이스 복귀 (필요 시 주석 해제)
                 robot.goTo("home base");
             }
         }.start();
 
-        // "다시 하기" 버튼
         btnRestart.setOnClickListener(v -> {
-            Log.d(TAG, "다시 하기 클릭 → StartActivity로 초기화 이동");
-
-            // TTS 강제 종료: 말하고 있는 도중에 버튼을 누르면 말이 겹치지 않도록 끊어줌
             robot.cancelAllTtsRequests();
-
             Intent intent = new Intent(this, StartActivity.class);
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
             startActivity(intent);
@@ -130,42 +144,51 @@ public class ResultActivity extends AppCompatActivity {
         });
     }
 
-    // Firebase 쿼리 및 비즈니스 로직
-    private void fetchFirebaseDataAndCalculate(String startTime, String endTime) {
+    private void fetchFirebaseDataAndCalculate(String startTimeStr, String endTimeStr, int gameLevel) {
         DatabaseReference ref = FirebaseDatabase.getInstance().getReference("pad_data");
+        Query gameDataQuery = ref.orderByChild("start_time").startAt(startTimeStr).endAt(endTimeStr);
 
-        Log.d(TAG, "요청한 검색 구간: " + startTime + " ~ " + endTime);
-
-        // start_time을 기준으로 게임 시작 시간부터 종료 시간까지의 데이터만 필터링
-        Query gameDataQuery = ref.orderByChild("start_time").startAt(startTime).endAt(endTime);
-
-        // addListenerForSingleValueEvent: 지속적인 구독이 아닌 1회성 데이터 읽기 (결과창에 적합)
         gameDataQuery.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
-                int tempScore = 0;
-                int count = 0;
+                long gameStartMs = parseTimeToMillis(startTimeStr);
+
+                // 선택된 영상에 맞는 정답 구간 배열 할당
+                double[][] currentWindows = (gameLevel == 1) ? LEVEL_1_WINDOWS : LEVEL_2_WINDOWS;
+                int totalWindows = currentWindows.length;
+
+                // 중복 득점 방지 (한 구간에서 여러 번 눌러도 1번만 인정)
+                boolean[] isWindowHit = new boolean[totalWindows];
 
                 for (DataSnapshot data : snapshot.getChildren()) {
-                    // 키 값을 통해 데이터 추출
+                    String touchTimeStr = data.child("start_time").getValue(String.class);
                     Integer pressure = data.child("pressure").getValue(Integer.class);
-                    Long duration = data.child("duration_ms").getValue(Long.class);
 
-                    if (pressure != null && duration != null) {
-                        count++;
-                        // 예시 비즈니스 로직: 압력이 80 이상이면 10점, 누른 시간이 500ms 이상이면 보너스 등
-                        if (pressure > 80) {
-                            tempScore += 10;
-                        } else {
-                            tempScore += 5;
+                    if (touchTimeStr != null && pressure != null) {
+                        totalTouchCount++;
+
+                        // 압력이 너무 낮은(오터치) 경우는 무시할 수 있도록 임계값 설정 (필요시 조정)
+                        if (pressure < 20) continue;
+
+                        long touchTimeMs = parseTimeToMillis(touchTimeStr);
+                        double relativeSeconds = (touchTimeMs - gameStartMs) / 1000.0;
+
+                        // TODO: 추후 MediaPipe 연동 시 Left/Right/Clap 조건을 이 반복문 내에 추가
+                        for (int i = 0; i < totalWindows; i++) {
+                            // 아직 해당 구간에서 득점하지 않았고, 터치 시간이 구간 내에 존재한다면
+                            if (!isWindowHit[i] && relativeSeconds >= currentWindows[i][0] && relativeSeconds <= currentWindows[i][1]) {
+                                isWindowHit[i] = true;
+                                hitCount++;
+                                break; // 하나의 터치는 하나의 정답 구간에만 매핑
+                            }
                         }
                     }
                 }
 
-                // 전역 변수에 최종 결과 저장 (타이머 종료 시 화면에 반영됨)
-                finalCalculatedScore = tempScore;
-                totalTouchCount = count;
-                Log.d(TAG, "데이터 집계 완료. 총 건수: " + count + ", 합산 점수: " + finalCalculatedScore);
+                // 100점 만점으로 환산 (맞춘 개수 / 전체 정답 수 * 100)
+                finalCalculatedScore = (int) (((double) hitCount / totalWindows) * 100);
+
+                Log.d(TAG, "총 센서 반응: " + totalTouchCount + ", 정답 인정: " + hitCount + "/" + totalWindows);
             }
 
             @Override
@@ -175,14 +198,34 @@ public class ResultActivity extends AppCompatActivity {
         });
     }
 
+    /**
+     * Firebase에 저장된 start_time 형식이 timestamp(Long)인지 문자열(yyyy-MM-dd)인지
+     * 유연하게 대처하여 밀리초 단위로 변환해주는 헬퍼 메서드입니다.
+     */
+    private long parseTimeToMillis(String timeStr) {
+        if (timeStr == null) return 0;
+        try {
+            // 1. Unix epoch (예: "1718000000000") 로 저장된 경우
+            return Long.parseLong(timeStr);
+        } catch (NumberFormatException e) {
+            // 2. 날짜 포맷 (예: "2026-06-17 11:22:29") 으로 저장된 경우
+            try {
+                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault());
+                Date date = sdf.parse(timeStr);
+                return date != null ? date.getTime() : 0;
+            } catch (Exception ex) {
+                Log.e(TAG, "시간 파싱 오류: " + timeStr);
+                return 0;
+            }
+        }
+    }
+
     @Override
     protected void onDestroy() {
         super.onDestroy();
         if (loadingTimer != null) {
             loadingTimer.cancel();
-            Log.d(TAG, "로딩 타이머 취소됨");
         }
-        // 안전장치
         if (robot != null) {
             robot.cancelAllTtsRequests();
         }
