@@ -2,39 +2,36 @@
 <androidx.constraintlayout.widget.ConstraintLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/rootLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:padding="32dp"
-    android:background="#15171E"> <!-- 원래의 깊고 차분한 다크 배경 유지 -->
+    android:padding="24dp" android:background="@drawable/bg_animated_sunset">
 
-    <!-- 타이틀을 없애고 버튼들로만 화면을 꽉 채우는 2열 수직 구조 -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical"
         android:weightSum="2">
 
-        <!-- 상단: 1단계, 2단계 게임 (블루/퍼플 네온 테두리) -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
             android:orientation="horizontal"
-            android:paddingBottom="16dp">
+            android:paddingBottom="12dp" android:clipToPadding="false">
 
             <Button
                 android:id="@+id/btnStart1"
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
                 android:layout_weight="1"
-                android:layout_marginEnd="16dp"
-                android:text="🎵\n1단계 시작"
-                android:textSize="32sp"
-                android:textColor="#4DB8FF"
+                android:layout_marginEnd="12dp" android:text="🎵\n1단계 시작"
+                android:textSize="36sp" android:textColor="#FFFFFF"
                 android:textStyle="bold"
-                android:backgroundTint="#20232E"
+                android:backgroundTint="#CC161824"
+                android:elevation="12dp"
                 app:strokeWidth="2dp"
-                app:strokeColor="#4DB8FF"
+                app:strokeColor="#4DFFFFFF"
                 app:cornerRadius="24dp"/>
 
             <Button
@@ -42,38 +39,37 @@
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
                 android:layout_weight="1"
-                android:layout_marginStart="16dp"
-                android:text="✨\n2단계 시작"
-                android:textSize="32sp"
-                android:textColor="#B388FF"
+                android:layout_marginStart="12dp" android:text="✨\n2단계 시작"
+                android:textSize="36sp"
+                android:textColor="#FFFFFF"
                 android:textStyle="bold"
-                android:backgroundTint="#20232E"
+                android:backgroundTint="#CC161824"
+                android:elevation="12dp"
                 app:strokeWidth="2dp"
-                app:strokeColor="#B388FF"
+                app:strokeColor="#4DFFFFFF"
                 app:cornerRadius="24dp"/>
         </LinearLayout>
 
-        <!-- 하단: 알람 설정 및 취소 버튼 3개 (오렌지/그린/레드 네온 테두리) -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
             android:orientation="horizontal"
-            android:paddingTop="16dp">
+            android:paddingTop="12dp" android:clipToPadding="false">
 
             <Button
                 android:id="@+id/btnSetAlarm"
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
                 android:layout_weight="1"
-                android:layout_marginEnd="10dp"
-                android:text="⏰\n운동 알람"
-                android:textSize="26sp"
-                android:textColor="#FFB74D"
+                android:layout_marginEnd="8dp" android:text="⏰\n운동 알람"
+                android:textSize="28sp"
+                android:textColor="#FFD54F"
                 android:textStyle="bold"
-                android:backgroundTint="#20232E"
+                android:backgroundTint="#CC161824"
+                android:elevation="12dp"
                 app:strokeWidth="2dp"
-                app:strokeColor="#FFB74D"
+                app:strokeColor="#4DFFFFFF"
                 app:cornerRadius="24dp"/>
 
             <Button
@@ -81,14 +77,14 @@
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
                 android:layout_weight="1"
-                android:layout_marginHorizontal="10dp"
-                android:text="💊\n복약 알람"
-                android:textSize="26sp"
+                android:layout_marginHorizontal="8dp" android:text="💊\n복약 알람"
+                android:textSize="28sp"
                 android:textColor="#81C784"
                 android:textStyle="bold"
-                android:backgroundTint="#20232E"
+                android:backgroundTint="#CC161824"
+                android:elevation="12dp"
                 app:strokeWidth="2dp"
-                app:strokeColor="#81C784"
+                app:strokeColor="#4DFFFFFF"
                 app:cornerRadius="24dp"/>
 
             <Button
@@ -96,14 +92,15 @@
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
                 android:layout_weight="1"
-                android:layout_marginStart="10dp"
+                android:layout_marginStart="8dp"
                 android:text="🚫\n알람 취소"
-                android:textSize="26sp"
+                android:textSize="28sp"
                 android:textColor="#E57373"
                 android:textStyle="bold"
-                android:backgroundTint="#20232E"
+                android:backgroundTint="#CC161824"
+                android:elevation="12dp"
                 app:strokeWidth="2dp"
-                app:strokeColor="#E57373"
+                app:strokeColor="#4DFFFFFF"
                 app:cornerRadius="24dp"/>
         </LinearLayout>
     </LinearLayout>
