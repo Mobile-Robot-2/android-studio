@@ -16,6 +16,18 @@ import time
 from robot_manager import RobotCommandConflict, RobotManager
 from robot_models import RobotCommandRequest, RobotStatusUpdate
 
+import firebase_admin
+from firebase_admin import credentials, db
+
+cred = credentials.Certificate("firebase-key.json")
+
+firebase_admin.initialize_app(
+    cred,
+    {
+        "databaseURL":
+        "https://mobile-robot-2-default-rtdb.firebaseio.com/"
+    }
+)
 
 app = FastAPI(title="Pose Rhythm Game API")
 BASE_DIR = Path(__file__).resolve().parent
@@ -136,7 +148,15 @@ async def analyze(
             status_code=400,
             detail="Missing image file. Use multipart field name 'image' or 'file'.",
         )
-    return await _analyze_upload(upload, elapsed_time)
+    result = await _analyze_upload(upload, elapsed_time)
+    db.reference("game/current").set({
+    "counts": result["counts"],
+    "elapsed_time": result["elapsed_time"],
+    "game_clear": result["game_clear"],
+    "fall_detected": result["fall_detected"]
+    })
+
+    return result
 
 
 @app.post("/analyze_frame")
