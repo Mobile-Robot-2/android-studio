@@ -151,6 +151,7 @@ async def analyze(
     result = await _analyze_upload(upload, elapsed_time)
 
     firebase_data = {
+        "timestamp": time.time(),
         "counts": result["counts"],
         "elapsed_time": result["elapsed_time"],
         "game_clear": result["game_clear"],
