@@ -98,6 +98,10 @@ public class MainActivity extends AppCompatActivity implements OnBatteryStatusCh
             textStatus.setText("게임 시작!");
         });
 
+        robot = Robot.getInstance();
+        robot.setTrackUserOn(false);
+        robot.tiltAngle(-15);
+
         setupVideo();
 
         if (hasCameraPermission()) {
@@ -106,7 +110,7 @@ public class MainActivity extends AppCompatActivity implements OnBatteryStatusCh
             requestCameraPermission();
         }
 
-        robot = Robot.getInstance();
+
     }
 
     @Override
