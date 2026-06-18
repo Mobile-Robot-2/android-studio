@@ -190,6 +190,11 @@ public class PrepareActivity extends AppCompatActivity {
                 // ⭐️ MainActivity가 영상을 틀 수 있도록 바통을 그대로 다시 전달!
                 intent.putExtra("videoType", selectedVideoType);
 
+                boolean reset =
+                        getIntent().getBooleanExtra("RESET_GAME", false);
+
+                intent.putExtra("RESET_GAME", reset);
+
                 startActivity(intent);
                 finish();
             }

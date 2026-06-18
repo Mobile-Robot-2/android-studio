@@ -86,18 +86,19 @@ public class MainActivity extends AppCompatActivity implements OnBatteryStatusCh
         hideSystemUI();
         setContentView(R.layout.activity_main);
 
+        boolean reset =
+                getIntent().getBooleanExtra("RESET_GAME", false);
+
+        if (reset) {
+            resetGameState();
+        }
+
         videoView   = findViewById(R.id.videoView);
         previewView = findViewById(R.id.previewView);
         cameraExecutor = Executors.newSingleThreadExecutor();
 
         textStatus = findViewById(R.id.textStatus);
-
-        Button btnStart = findViewById(R.id.btnStart);
-        btnStart.setOnClickListener(v -> {
-            resetGameState();
-            textStatus.setText("게임 시작!");
-        });
-
+//        previewView.setVisibility(View.GONE);
         setupVideo();
 
         if (hasCameraPermission()) {
