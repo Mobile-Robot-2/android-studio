@@ -57,7 +57,7 @@ import okhttp3.Response;
 public class MainActivity extends AppCompatActivity implements OnBatteryStatusChangedListener {
 
     private static final String TAG = "MainActivity";
-    private static final String SERVER_URL = "http://172.20.10.4:8000";
+    private static final String SERVER_URL = "http://10.102.101.224:8000";
     private static final int REQUEST_CAMERA_PERMISSION = 100;
     private FillVideoView videoView;
     private TextView textStatus;
@@ -98,7 +98,7 @@ public class MainActivity extends AppCompatActivity implements OnBatteryStatusCh
         cameraExecutor = Executors.newSingleThreadExecutor();
 
         textStatus = findViewById(R.id.textStatus);
-//        previewView.setVisibility(View.GONE);
+        textStatus.setVisibility(View.GONE);
         setupVideo();
 
         if (hasCameraPermission()) {
