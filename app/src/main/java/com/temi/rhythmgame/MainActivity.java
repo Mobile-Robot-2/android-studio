@@ -108,6 +108,8 @@ public class MainActivity extends AppCompatActivity implements OnBatteryStatusCh
         }
 
         robot = Robot.getInstance();
+        robot.tiltAngle(-15);
+        robot.setTrackUserOn(false);
     }
 
     @Override
