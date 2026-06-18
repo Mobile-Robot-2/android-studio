@@ -149,12 +149,15 @@ async def analyze(
             detail="Missing image file. Use multipart field name 'image' or 'file'.",
         )
     result = await _analyze_upload(upload, elapsed_time)
-    db.reference("game/current").set({
-    "counts": result["counts"],
-    "elapsed_time": result["elapsed_time"],
-    "game_clear": result["game_clear"],
-    "fall_detected": result["fall_detected"]
-    })
+
+    firebase_data = {
+        "counts": result["counts"],
+        "elapsed_time": result["elapsed_time"],
+        "game_clear": result["game_clear"],
+        "fall_detected": result["fall_detected"]
+    }
+    db.reference("game/current").set(firebase_data)
+    db.reference("game/history").push(firebase_data)
 
     return result
 
@@ -254,6 +257,11 @@ def _save_fall_evidence_image(image_bytes: bytes, event_id: str) -> str | None:
 @app.post("/reset")
 def reset() -> dict:
     global game_start_time
+
+    # Firebase 이전 게임 데이터 삭제
+    db.reference("game/history").delete()
+    db.reference("game/current").delete()
+
     with processing_lock:
         state = counter.reset()
         fall_state = fall_detector.reset()
