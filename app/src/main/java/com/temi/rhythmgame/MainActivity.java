@@ -57,7 +57,7 @@ import okhttp3.Response;
 public class MainActivity extends AppCompatActivity implements OnBatteryStatusChangedListener {
 
     private static final String TAG = "MainActivity";
-    private static final String SERVER_URL = "http://172.20.10.4:8000";
+    private static final String SERVER_URL = "http://10.102.101.224:8000";
     private static final int REQUEST_CAMERA_PERMISSION = 100;
     private FillVideoView videoView;
     private TextView textStatus;
@@ -86,22 +86,19 @@ public class MainActivity extends AppCompatActivity implements OnBatteryStatusCh
         hideSystemUI();
         setContentView(R.layout.activity_main);
 
+        boolean reset =
+                getIntent().getBooleanExtra("RESET_GAME", false);
+
+        if (reset) {
+            resetGameState();
+        }
+
         videoView   = findViewById(R.id.videoView);
         previewView = findViewById(R.id.previewView);
         cameraExecutor = Executors.newSingleThreadExecutor();
 
         textStatus = findViewById(R.id.textStatus);
-
-        Button btnStart = findViewById(R.id.btnStart);
-        btnStart.setOnClickListener(v -> {
-            resetGameState();
-            textStatus.setText("게임 시작!");
-        });
-
-        robot = Robot.getInstance();
-        robot.setTrackUserOn(false);
-        robot.tiltAngle(-15);
-
+        textStatus.setVisibility(View.GONE);
         setupVideo();
 
         if (hasCameraPermission()) {
@@ -110,7 +107,7 @@ public class MainActivity extends AppCompatActivity implements OnBatteryStatusCh
             requestCameraPermission();
         }
 
-
+        robot = Robot.getInstance();
     }
 
     @Override
@@ -167,11 +164,11 @@ public class MainActivity extends AppCompatActivity implements OnBatteryStatusCh
     private void hideSystemUI() {
         getWindow().getDecorView().setSystemUiVisibility(
                 View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-                | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                | View.SYSTEM_UI_FLAG_FULLSCREEN);
+                        | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                        | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                        | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                        | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                        | View.SYSTEM_UI_FLAG_FULLSCREEN);
     }
 
     // ───────────────── 영상 ──────────────────────────────────────────────

@@ -46,6 +46,7 @@ public class StartActivity extends AppCompatActivity {
             Log.d(TAG, "영상 1번 클릭 → PrepareActivity로 전환");
             Intent intent = new Intent(StartActivity.this, PrepareActivity.class);
             intent.putExtra("videoType", 1); // ⭐️ 1번 영상이라는 이름표 달기
+            intent.putExtra("RESET_GAME", true);
             startActivity(intent);
         });
 
@@ -55,6 +56,7 @@ public class StartActivity extends AppCompatActivity {
             Log.d(TAG, "영상 2번 클릭 → PrepareActivity로 전환");
             Intent intent = new Intent(StartActivity.this, PrepareActivity.class);
             intent.putExtra("videoType", 2); // ⭐️ 2번 영상이라는 이름표 달기
+            intent.putExtra("RESET_GAME", true);
             startActivity(intent);
         });
 
