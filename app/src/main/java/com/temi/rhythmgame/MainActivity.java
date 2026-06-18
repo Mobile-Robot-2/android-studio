@@ -98,7 +98,7 @@ public class MainActivity extends AppCompatActivity implements OnBatteryStatusCh
         cameraExecutor = Executors.newSingleThreadExecutor();
 
         textStatus = findViewById(R.id.textStatus);
-//        textStatus.setVisibility(View.GONE);
+        textStatus.setVisibility(View.GONE);
         setupVideo();
 
         if (hasCameraPermission()) {
