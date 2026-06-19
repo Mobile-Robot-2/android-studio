@@ -14,6 +14,7 @@ import androidx.constraintlayout.widget.ConstraintLayout;
 import com.robotemi.sdk.Robot;
 import com.robotemi.sdk.TtsRequest;
 import com.robotemi.sdk.UserInfo;
+import android.content.Intent;
 
 import java.util.Collections;
 import java.util.List;
@@ -63,7 +64,7 @@ public class MedicationActivity extends AppCompatActivity {
         tvMessage.setText("복약하실 시간입니다.\n약을 드셨다면 복약 완료 버튼을 눌러주세요.");
         robot.speak(TtsRequest.create("복약하실 시간입니다. 약을 드셨다면 복약 완료 버튼을 눌러주세요.", false));
 
-        countDownTimer = new CountDownTimer(60000, 1000) {
+        countDownTimer = new CountDownTimer(30000, 1000) {
 
             @Override
             public void onTick(long millisUntilFinished) {
@@ -73,35 +74,24 @@ public class MedicationActivity extends AppCompatActivity {
 
             @Override
             public void onFinish() {
-                Log.d("MedicationActivity", "60초 경과 - 보호자 영상통화 실행 예정");
+                tvMessage.setText("상태를 확인하고 있습니다.");
+                tvTimer.setText("");
+                robot.speak(TtsRequest.create("어르신 괜찮으신가요?", false));
 
-                tvMessage.setText("응답이 없어 보호자에게 연락합니다.");
-                tvTimer.setText("영상통화 연결 중...");
-                robot.speak(TtsRequest.create("응답이 없어 보호자에게 긴급 연락을 시도합니다.", false));
+                Intent intent =
+                        new Intent(
+                                MedicationActivity.this,
+                                MainActivity.class
+                        );
 
-                // 🚨 [수정] 강제 리스트화(Collections.singletonList) 시 앱이 튕길 수 있어 안전한 단일 객체 호출로 복구했습니다.
-                UserInfo adminInfo = robot.getAdminInfo();
+                intent.putExtra("fall_mode", true);
 
-                if (adminInfo != null) {
-                    String targetName = adminInfo.getName();
-                    String targetUserId = adminInfo.getUserId();
+                startActivity(intent);
+                finish();
 
-                    // ⭐️ 1. 영상통화가 시작됨을 플래그에 기록
-                    isCallLaunched = true;
 
-                    // 모바일 플랫폼으로 명시하여 즉시 전화 연결
-                    robot.startTelepresence(targetName, targetUserId, com.robotemi.sdk.constants.Platform.MOBILE);
 
-                    // ⭐️ 2. 기존에 있던 finish(); 삭제 -> 앱이 죽지 않고 백그라운드에 대기합니다!
-                } else {
-                    Log.e("MedicationActivity", "등록된 보호자 없음");
-                    robot.speak(TtsRequest.create("연결할 보호자 연락처가 없습니다. 홈 베이스로 복귀합니다.", false));
 
-                    // 보호자가 없을 때만 바로 복귀 후 종료
-                    robot.setTrackUserOn(false);
-                    robot.goTo("home base");
-                    finish();
-                }
             }
         }.start();
 
