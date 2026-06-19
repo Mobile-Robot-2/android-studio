@@ -35,6 +35,8 @@ import com.robotemi.sdk.BatteryData;
 import com.robotemi.sdk.Robot;
 import com.robotemi.sdk.listeners.OnBatteryStatusChangedListener;
 
+import org.json.JSONObject;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -53,11 +55,12 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
+import com.robotemi.sdk.UserInfo;
 
 public class MainActivity extends AppCompatActivity implements OnBatteryStatusChangedListener {
 
     private static final String TAG = "MainActivity";
-    private static final String SERVER_URL = "http://10.102.101.224:8000";
+    private static final String SERVER_URL = "http://10.102.101.67:8000";
     private static final int REQUEST_CAMERA_PERMISSION = 100;
     private FillVideoView videoView;
     private TextView textStatus;
@@ -75,6 +78,9 @@ public class MainActivity extends AppCompatActivity implements OnBatteryStatusCh
 
     private long lastSendTime = 0;
 
+    private boolean emergencyTriggered = false;
+    private boolean fallMode = false;
+
     // ───────────────── 생명주기 ──────────────────────────────────────────
 
     @Override
@@ -85,6 +91,9 @@ public class MainActivity extends AppCompatActivity implements OnBatteryStatusCh
 
         hideSystemUI();
         setContentView(R.layout.activity_main);
+
+        fallMode = getIntent().getBooleanExtra("fall_mode", false);
+        Log.d("FALL_MODE", "fallMode = " + fallMode);
 
         boolean reset =
                 getIntent().getBooleanExtra("RESET_GAME", false);
@@ -99,7 +108,10 @@ public class MainActivity extends AppCompatActivity implements OnBatteryStatusCh
 
         textStatus = findViewById(R.id.textStatus);
         textStatus.setVisibility(View.GONE);
-        setupVideo();
+
+        if (!fallMode) {
+            setupVideo();
+        }
 
         if (hasCameraPermission()) {
             startCamera();
@@ -347,6 +359,23 @@ public class MainActivity extends AppCompatActivity implements OnBatteryStatusCh
             public void onResponse(Call call, Response response) throws IOException {
                 String result = response.body().string();
                 Log.d("SERVER_RESPONSE", result);
+
+                try {
+                    JSONObject json = new JSONObject(result);
+                    boolean fallDetected = json.optBoolean("fall_detected", false);
+
+                    if (fallMode && fallDetected && !emergencyTriggered) {
+                        emergencyTriggered = true;
+                        Log.d("FALL_DETECTED", "낙상 감지1");
+
+                        runOnUiThread(() -> {
+                            Toast.makeText(MainActivity.this, "낙상 감지!", Toast.LENGTH_SHORT).show();
+                            callGuardian();
+                        });
+                    }
+                } catch (Exception e) {
+                    Log.e("JSON_ERROR", e.getMessage());
+                }
             }
         });
     }
@@ -416,4 +445,30 @@ public class MainActivity extends AppCompatActivity implements OnBatteryStatusCh
             Toast.makeText(this, "카메라 권한이 필요합니다.", Toast.LENGTH_SHORT).show();
         }
     }
-}
+
+    private void callGuardian() {
+
+        Robot robot = Robot.getInstance();
+
+        UserInfo adminInfo =
+                robot.getAdminInfo();
+
+        if (adminInfo != null) {
+
+            robot.startTelepresence(
+                    adminInfo.getName(),
+                    adminInfo.getUserId(),
+                    com.robotemi.sdk.constants.Platform.MOBILE
+            );
+
+        } else {
+
+            Log.e(
+                    "CALL",
+                    "보호자 정보 없음"
+            );
+        }
+    }
+
+    }
+
