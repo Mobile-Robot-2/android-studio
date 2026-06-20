@@ -19,9 +19,11 @@ DROP_WINDOW_SECONDS = 1.0
 MIN_CENTER_DROP = 0.12
 HORIZONTAL_ANGLE_DEGREES = 50.0
 STRONG_HORIZONTAL_ANGLE_DEGREES = 75.0
-LOW_HIP_Y = 0.55
-LOW_SHOULDER_Y = 0.45
-BODY_CENTER_LOW_Y = 0.50
+UPPER_BODY_HORIZONTAL_ANGLE_DEGREES = 55.0
+LOW_HEAD_Y = 0.40
+LOW_HIP_Y = 0.50
+LOW_SHOULDER_Y = 0.38
+BODY_CENTER_LOW_Y = 0.45
 
 
 class FallDetector:
@@ -54,20 +56,30 @@ class FallDetector:
         fallen_pose = metrics["horizontal"] and (
             metrics["low_position"] or strong_horizontal
         )
+        obvious_lying_pose = metrics["upper_body_horizontal"] and metrics["low_position"]
         fall_evidence = fallen_pose or (
             metrics["sudden_drop"] and (metrics["horizontal"] or metrics["low_position"])
-        )
+        ) or obvious_lying_pose
 
         if fall_evidence:
             self.last_evidence_time = now
 
         if self.status == "NORMAL":
-            if fall_evidence:
+            if obvious_lying_pose:
+                self.status = "FALL_CONFIRMED"
+                self.suspected_since = now
+                self.recovery_since = None
+                self._create_event()
+            elif fall_evidence:
                 self.status = "FALL_SUSPECTED"
                 self.suspected_since = now
 
         elif self.status == "FALL_SUSPECTED":
-            if fallen_pose:
+            if obvious_lying_pose:
+                self.status = "FALL_CONFIRMED"
+                self.recovery_since = None
+                self._create_event()
+            elif fallen_pose:
                 if self.suspected_since is None:
                     self.suspected_since = now
                 if now - self.suspected_since >= FALL_CONFIRM_SECONDS:
@@ -79,7 +91,11 @@ class FallDetector:
                 self.suspected_since = None
 
         elif self.status == "FALL_CONFIRMED":
-            recovered_pose = not metrics["horizontal"] and not metrics["low_position"]
+            recovered_pose = (
+                not metrics["horizontal"]
+                and not metrics["upper_body_horizontal"]
+                and not metrics["low_position"]
+            )
             if recovered_pose:
                 if self.recovery_since is None:
                     self.recovery_since = now
@@ -159,8 +175,19 @@ class FallDetector:
         torso_dy = abs(shoulder_y - hip_y)
         torso_angle = math.degrees(math.atan2(torso_dx, max(torso_dy, 1e-6)))
         horizontal = torso_angle >= HORIZONTAL_ANGLE_DEGREES
+
+        upper_body_dx = abs(nose.x - shoulder_x)
+        upper_body_dy = abs(nose.y - shoulder_y)
+        upper_body_angle = math.degrees(
+            math.atan2(upper_body_dx, max(upper_body_dy, 1e-6))
+        )
+        upper_body_horizontal = (
+            upper_body_angle >= UPPER_BODY_HORIZONTAL_ANGLE_DEGREES
+        )
+
         low_position = (
-            hip_y >= LOW_HIP_Y
+            nose.y >= LOW_HEAD_Y
+            or hip_y >= LOW_HIP_Y
             or shoulder_y >= LOW_SHOULDER_Y
             or body_center_y >= BODY_CENTER_LOW_Y
         )
@@ -179,10 +206,13 @@ class FallDetector:
         return {
             "torso_angle": round(torso_angle, 1),
             "center_drop": round(center_drop, 3),
+            "upper_body_angle": round(upper_body_angle, 1),
             "body_center_y": round(body_center_y, 3),
+            "head_y": round(nose.y, 3),
             "shoulder_y": round(shoulder_y, 3),
             "hip_y": round(hip_y, 3),
             "horizontal": horizontal,
+            "upper_body_horizontal": upper_body_horizontal,
             "low_position": low_position,
             "sudden_drop": sudden_drop,
             "rapid_drop": sudden_drop,
@@ -191,6 +221,8 @@ class FallDetector:
     def _confidence(self) -> float:
         score = 0.0
         if self.last_metrics["horizontal"]:
+            score += 0.4
+        if self.last_metrics["upper_body_horizontal"]:
             score += 0.4
         if self.last_metrics["low_position"]:
             score += 0.35
@@ -205,10 +237,13 @@ class FallDetector:
         return {
             "torso_angle": 0.0,
             "center_drop": 0.0,
+            "upper_body_angle": 0.0,
             "body_center_y": 0.0,
+            "head_y": 0.0,
             "shoulder_y": 0.0,
             "hip_y": 0.0,
             "horizontal": False,
+            "upper_body_horizontal": False,
             "low_position": False,
             "sudden_drop": False,
             "rapid_drop": False,
