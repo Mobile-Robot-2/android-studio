@@ -122,7 +122,7 @@ public class MainActivity extends AppCompatActivity implements OnBatteryStatusCh
         }
 
         robot = Robot.getInstance();
-        robot.tiltAngle(-15);
+        robot.tiltAngle(10);
         robot.setTrackUserOn(false);
     }
 
@@ -148,7 +148,7 @@ public class MainActivity extends AppCompatActivity implements OnBatteryStatusCh
         boolean isCharging = batteryData.isCharging();
 
         // 예시: 20% 이하로 떨어졌고 충전 중이 아닐 때
-        if (batteryLevel <= 39 && !isCharging) {
+        if (batteryLevel <= 34 && !isCharging) {
 
             // 배터리 복귀 화면으로 전환
             Intent intent = new Intent(this, BatteryReturnActivity.class);
