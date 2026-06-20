@@ -1,11 +1,13 @@
 package com.temi.rhythmgame;
 
+import android.app.AlertDialog;
 import android.app.TimePickerDialog;
 import android.content.Intent;
 import android.graphics.drawable.AnimationDrawable;
 import android.os.Bundle;
 import android.util.Log;
 import android.widget.Button;
+import android.widget.NumberPicker;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -88,6 +90,50 @@ public class StartActivity extends AppCompatActivity {
             // 사용자 알림 피드백
             Toast.makeText(StartActivity.this, "설정된 모든 알람이 취소되었습니다.", Toast.LENGTH_SHORT).show();
         });
+
+        // 5. 순찰 주기 설정 버튼
+        Button btnSetPatrol = findViewById(R.id.btnSetPatrol);
+        btnSetPatrol.setOnClickListener(v -> {
+            Log.d(TAG, "순찰 주기 설정 버튼 클릭");
+            showPatrolIntervalDialog();
+        });
+    }
+
+    // 순찰 주기(분) 선택 다이얼로그
+    private void showPatrolIntervalDialog() {
+        NumberPicker picker = new NumberPicker(this);
+        picker.setMinValue(1);
+        picker.setMaxValue(60);
+
+        // 기존 설정값이 있으면 그 값을, 없으면 10분을 기본 선택
+        int current = PatrolHelper.getInterval(this);
+        picker.setValue(current > 0 ? current : 10);
+
+        new AlertDialog.Builder(this)
+                .setTitle("순찰 주기 설정 (분)")
+                .setMessage(current > 0
+                        ? "현재 " + current + "분마다 순찰 중입니다."
+                        : "순찰이 꺼져 있습니다.")
+                .setView(picker)
+                .setPositiveButton("설정", (dialog, which) -> {
+                    int minutes = picker.getValue();
+                    PatrolHelper.setPatrolInterval(StartActivity.this, minutes);
+                    Toast.makeText(
+                            StartActivity.this,
+                            minutes + "분마다 순찰을 시작합니다.",
+                            Toast.LENGTH_SHORT
+                    ).show();
+                })
+                .setNeutralButton("순찰 끄기", (dialog, which) -> {
+                    PatrolHelper.cancelPatrol(StartActivity.this);
+                    Toast.makeText(
+                            StartActivity.this,
+                            "순찰을 종료했습니다.",
+                            Toast.LENGTH_SHORT
+                    ).show();
+                })
+                .setNegativeButton("취소", null)
+                .show();
     }
 
     // 운동 알람 시간 선택

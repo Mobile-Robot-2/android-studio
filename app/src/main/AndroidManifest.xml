@@ -72,6 +72,17 @@
             android:name=".PoseAnalysisActivity"
             android:exported="false"
             android:screenOrientation="landscape" />
+
+        <activity
+            android:name=".PatrolActivity"
+            android:exported="false"
+            android:showOnLockScreen="true"
+            android:turnScreenOn="true"
+            android:screenOrientation="landscape" />
+
+        <receiver
+            android:name=".PatrolReceiver"
+            android:exported="false" />
     </application>
 
 </manifest>
