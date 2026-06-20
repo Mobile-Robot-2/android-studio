@@ -481,5 +481,36 @@ public class MainActivity extends AppCompatActivity implements OnBatteryStatusCh
 
 
     }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+        // 영상통화 후 우리 앱으로 돌아온 경우
+        if (isCalledLaunched) {
+
+            Log.d("CALL", "영상통화 종료 확인");
+
+            // 다음 통화를 위해 초기화
+            isCalledLaunched = false;
+
+            // 시작 화면으로 이동
+            Intent intent = new Intent(MainActivity.this, StartActivity.class);
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP |
+                    Intent.FLAG_ACTIVITY_NEW_TASK);
+
+            startActivity(intent);
+
+            // home base 복귀
+            if (robot != null) {
+                robot.setTrackUserOn(false);
+                robot.goTo("home base");
+            }
+
+
+
+            finish();
+        }
+    }
 }
 
