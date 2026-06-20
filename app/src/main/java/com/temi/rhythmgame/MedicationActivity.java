@@ -76,6 +76,7 @@ public class MedicationActivity extends AppCompatActivity {
             public void onFinish() {
                 tvMessage.setText("상태를 확인하고 있습니다.");
                 tvTimer.setText("");
+                robot.tiltAngle(-25);
                 robot.speak(TtsRequest.create("어르신 괜찮으신가요?", false));
 
                 Intent intent =
