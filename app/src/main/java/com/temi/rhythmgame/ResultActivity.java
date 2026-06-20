@@ -113,7 +113,7 @@ public class ResultActivity extends AppCompatActivity {
         Log.d(TAG, "게임 레벨: " + gameLevel + " / 영상 시작 시간: " + gameStartTime);
 
         // ⭐️ Firebase 데이터 호출 및 MediaPipe 기반 점수 계산
-        fetchFirebaseDataAndCalculate(gameStartTime, gameLevel);
+        fetchFirebaseDataAndCalculate(gameStartTime, gameEndTime, gameLevel);
 
         loadingTimer = new CountDownTimer(10000, 1000) {
             @Override
@@ -152,89 +152,130 @@ public class ResultActivity extends AppCompatActivity {
         });
     }
 
-    private void fetchFirebaseDataAndCalculate(String startTimeStr, int gameLevel) {
-        // "게임 시작 시 DB 삭제" 방식을 따르므로 전체 history를 순회합니다.
-        DatabaseReference ref = FirebaseDatabase.getInstance().getReference("game/history");
+    private void fetchFirebaseDataAndCalculate(String startTimeStr, String endTimeStr, int gameLevel) {
+        Log.d(TAG, "==== 🔍 [하이브리드] 점수 계산 로직 시작 ====");
 
-        ref.addListenerForSingleValueEvent(new ValueEventListener() {
+        // 1. 아두이노 (압력 센서) 데이터 먼저 가져오기
+        DatabaseReference padRef = FirebaseDatabase.getInstance().getReference("pad_data");
+        Query padQuery = padRef.orderByChild("start_time").startAt(startTimeStr).endAt(endTimeStr);
+
+        padQuery.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
-            public void onDataChange(@NonNull DataSnapshot snapshot) {
-                // 1. 영상이 켜진 절대 시간을 밀리초로 변환 (PrepareActivity의 10초 대기가 이미 포함된 시점)
+            public void onDataChange(@NonNull DataSnapshot padSnapshot) {
                 long gameStartMs = parseTimeToMillis(startTimeStr);
 
                 double[][] currentWindows = (gameLevel == 1) ? LEVEL_1_WINDOWS : LEVEL_2_WINDOWS;
                 int[] currentActions = (gameLevel == 1) ? LEVEL_1_ACTIONS : LEVEL_2_ACTIONS;
                 int totalWindows = currentWindows.length;
+
+                // 두 센서가 공통으로 체크할 정답 확인용 배열
                 boolean[] isWindowHit = new boolean[totalWindows];
 
-                // ⭐️ 이전 프레임의 카운트를 기억할 변수
-                int prevClap = 0, prevLeft = 0, prevRight = 0, prevArms = 0;
+                Log.d(TAG, "센서 1/2: 아두이노 데이터 " + padSnapshot.getChildrenCount() + "개 확인 중...");
 
-                for (DataSnapshot data : snapshot.getChildren()) {
-                    Double pythonTimestamp = data.child("timestamp").getValue(Double.class);
+                // 🔴 아두이노 센서 채점 로직 ("버튼을 누르세요" 구간)
+                for (DataSnapshot data : padSnapshot.getChildren()) {
+                    String touchTimeStr = data.child("start_time").getValue(String.class);
+                    Integer pressure = data.child("pressure").getValue(Integer.class);
 
-                    // JSON 내 counts 추출 (null 방어)
-                    DataSnapshot counts = data.child("counts");
-                    Integer clap = counts.child("CLAP").getValue(Integer.class);
-                    Integer left = counts.child("LEFT_HAND_UP").getValue(Integer.class);
-                    Integer right = counts.child("RIGHT_HAND_UP").getValue(Integer.class);
-                    Integer arms = counts.child("ARMS_OPEN").getValue(Integer.class);
-
-                    int currClap = (clap != null) ? clap : prevClap;
-                    int currLeft = (left != null) ? left : prevLeft;
-                    int currRight = (right != null) ? right : prevRight;
-                    int currArms = (arms != null) ? arms : prevArms;
-
-                    // 2. 카운트가 이전보다 '증가'했다면 그 순간 동작을 한 것으로 판별
-                    boolean didClap = currClap > prevClap;
-                    boolean didLeft = currLeft > prevLeft;
-                    boolean didRight = currRight > prevRight;
-                    boolean didArms = currArms > prevArms;
-                    boolean didAny = didClap || didLeft || didRight || didArms; // 버튼 터치 대용
-
-                    // 값 갱신
-                    prevClap = currClap; prevLeft = currLeft; prevRight = currRight; prevArms = currArms;
-
-                    if (pythonTimestamp != null && didAny) { // 어떤 동작이든 했을 때만 시간 검사
-                        // 3. 파이썬 절대 시간(초)을 자바 밀리초로 변환
-                        long touchTimeMs = (long) (pythonTimestamp * 1000);
-
-                        // 4. 영상 시작 시간과 빼서 완벽하게 보정된 상대 시간(초) 계산
+                    if (touchTimeStr != null && pressure != null && pressure >= 20) {
+                        long touchTimeMs = parseTimeToMillis(touchTimeStr);
                         double relativeSeconds = (touchTimeMs - gameStartMs) / 1000.0;
 
-                        // 10초 대기 시간(마이너스 초)에 수행한 동작은 채점에서 무시
                         if (relativeSeconds < 0) continue;
 
                         for (int i = 0; i < totalWindows; i++) {
-                            // 아직 득점하지 않은 구간이고, 수행 시간이 정답 구간 내에 있다면
-                            if (!isWindowHit[i] && relativeSeconds >= currentWindows[i][0] && relativeSeconds <= currentWindows[i][1]) {
-
-                                int reqAction = currentActions[i];
-                                boolean isHit = false;
-
-                                // 5. 해당 구간이 요구하는 동작과 일치하는지 검증
-                                if (reqAction == ACTION_LEFT && didLeft) isHit = true;
-                                else if (reqAction == ACTION_RIGHT && didRight) isHit = true;
-                                else if (reqAction == ACTION_CLAP && didClap) isHit = true;
-                                else if (reqAction == ACTION_BUTTON && didAny) isHit = true; // '버튼' 구간은 MediaPipe 임의 동작으로 대체 인정
-
-                                if (isHit) {
-                                    isWindowHit[i] = true;
-                                    hitCount++;
-                                    break;
-                                }
+                            // 요구 동작이 '버튼 터치(ACTION_BUTTON)'이고, 정답 구간에 들어왔다면
+                            if (!isWindowHit[i] && currentActions[i] == ACTION_BUTTON
+                                    && relativeSeconds >= currentWindows[i][0] && relativeSeconds <= currentWindows[i][1]) {
+                                isWindowHit[i] = true;
+                                hitCount++;
+                                Log.d(TAG, "   ㄴ 🔘 [" + (i+1) + "번 정답 구간] 아두이노 버튼 터치 인정!");
+                                break;
                             }
                         }
                     }
                 }
 
-                finalCalculatedScore = (int) (((double) hitCount / totalWindows) * 100);
-                Log.d(TAG, "비전 데이터 분석 완료 - 정답 인정: " + hitCount + "/" + totalWindows);
+                // 2. 이어서 MediaPipe (비전 AI) 데이터 가져오기
+                DatabaseReference visionRef = FirebaseDatabase.getInstance().getReference("game/history");
+                visionRef.addListenerForSingleValueEvent(new ValueEventListener() {
+                    @Override
+                    public void onDataChange(@NonNull DataSnapshot visionSnapshot) {
+                        Log.d(TAG, "센서 2/2: 비전 AI 데이터 " + visionSnapshot.getChildrenCount() + "개 확인 중...");
+
+                        int prevClap = 0, prevLeft = 0, prevRight = 0, prevArms = 0;
+
+                        // 🔵 비전 AI 채점 로직 ("손 들기, 박수 치기" 구간)
+                        for (DataSnapshot data : visionSnapshot.getChildren()) {
+                            Double pythonTimestamp = data.child("timestamp").getValue(Double.class);
+                            DataSnapshot counts = data.child("counts");
+                            Integer clap = counts.child("CLAP").getValue(Integer.class);
+                            Integer left = counts.child("LEFT_HAND_UP").getValue(Integer.class);
+                            Integer right = counts.child("RIGHT_HAND_UP").getValue(Integer.class);
+                            Integer arms = counts.child("ARMS_OPEN").getValue(Integer.class);
+
+                            int currClap = (clap != null) ? clap : prevClap;
+                            int currLeft = (left != null) ? left : prevLeft;
+                            int currRight = (right != null) ? right : prevRight;
+                            int currArms = (arms != null) ? arms : prevArms;
+
+                            boolean didClap = currClap > prevClap;
+                            boolean didLeft = currLeft > prevLeft;
+                            boolean didRight = currRight > prevRight;
+                            boolean didArms = currArms > prevArms;
+                            boolean didAny = didClap || didLeft || didRight || didArms;
+
+                            prevClap = currClap; prevLeft = currLeft; prevRight = currRight; prevArms = currArms;
+
+                            if (pythonTimestamp != null && didAny) {
+                                long touchTimeMs = (long) (pythonTimestamp * 1000);
+                                double relativeSeconds = (touchTimeMs - gameStartMs) / 1000.0;
+
+                                if (relativeSeconds < 0) continue;
+
+                                for (int i = 0; i < totalWindows; i++) {
+                                    if (!isWindowHit[i] && relativeSeconds >= currentWindows[i][0] && relativeSeconds <= currentWindows[i][1]) {
+
+                                        int reqAction = currentActions[i];
+                                        boolean isHit = false;
+
+                                        if (reqAction == ACTION_LEFT && didLeft) isHit = true;
+                                        else if (reqAction == ACTION_RIGHT && didRight) isHit = true;
+                                        else if (reqAction == ACTION_CLAP && didClap) isHit = true;
+                                        // (버튼 액션은 이미 위에서 아두이노가 처리했으므로 제외)
+
+                                        if (isHit) {
+                                            isWindowHit[i] = true;
+                                            hitCount++;
+                                            Log.d(TAG, "   ㄴ 🖐 [" + (i+1) + "번 정답 구간] MediaPipe 비전 동작 인정!");
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // 3. 두 센서 종합 결과 점수 도출
+                        finalCalculatedScore = (int) (((double) hitCount / totalWindows) * 100);
+                        Log.d(TAG, "==== 📊 융합 최종 점수: " + finalCalculatedScore + "점 (정답: " + hitCount + "/" + totalWindows + ") ====");
+
+                        // ⭐️ 추가: 점수 계산이 완벽하게 끝났으므로, 다음 게임을 위해 pad_data를 통째로 삭제!
+                        padRef.removeValue().addOnSuccessListener(aVoid -> {
+                            Log.d(TAG, "🧹 다음 게임을 위해 Firebase의 pad_data가 깔끔하게 삭제되었습니다.");
+                        });
+                    }
+
+                    @Override
+                    public void onCancelled(@NonNull DatabaseError error) {
+                        Log.e(TAG, "MediaPipe 데이터 호출 실패: " + error.getMessage());
+                    }
+                });
             }
 
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
-                Log.e(TAG, "Firebase 데이터 호출 실패: " + error.getMessage());
+                Log.e(TAG, "아두이노 데이터 호출 실패: " + error.getMessage());
             }
         });
     }
@@ -242,7 +283,10 @@ public class ResultActivity extends AppCompatActivity {
     private long parseTimeToMillis(String timeStr) {
         if (timeStr == null) return 0;
         try {
-            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault());
+            // ⭐️ MainActivity와 동일하게 타임존을 강제 지정 (시간 엇나감 방지)
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.KOREA);
+            sdf.setTimeZone(java.util.TimeZone.getTimeZone("Asia/Seoul"));
+
             Date date = sdf.parse(timeStr);
             return date != null ? date.getTime() : 0;
         } catch (Exception ex) {
