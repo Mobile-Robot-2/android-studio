@@ -5,6 +5,8 @@ const elements = {
   robotLocation: document.getElementById("robotLocation"),
   robotBattery: document.getElementById("robotBattery"),
   lastSeen: document.getElementById("lastSeen"),
+  activeCommandId: document.getElementById("activeCommandId"),
+  lastCompletedCommandId: document.getElementById("lastCompletedCommandId"),
   lastUpdated: document.getElementById("lastUpdated"),
   personDetected: document.getElementById("personDetected"),
   fallStatus: document.getElementById("fallStatus"),
@@ -23,6 +25,7 @@ const elements = {
 };
 
 const movementStates = new Set(["MOVING_TO_USER", "RETURNING_TO_BASE"]);
+const busyStates = new Set(["MOVING_TO_USER", "RETURNING_TO_BASE", "CALLING_GUARDIAN"]);
 let latestRobotState = "OFFLINE";
 let hasActiveCommand = false;
 
@@ -62,6 +65,8 @@ function updateRobotView(payload) {
   elements.lastSeen.textContent = status.last_seen
     ? new Date(status.last_seen).toLocaleTimeString()
     : "-";
+  elements.activeCommandId.textContent = status.active_command_id || "-";
+  elements.lastCompletedCommandId.textContent = status.last_completed_command_id || "-";
   elements.lastError.textContent = status.last_error || "없음";
 
   const result = status.status_result || {};
@@ -107,6 +112,7 @@ function updateButtonAvailability() {
       !isSafetyCommand
       && (
         latestRobotState === "OFFLINE"
+        || busyStates.has(latestRobotState)
         || (movementStates.has(latestRobotState) && isMovementCommand)
         || hasActiveCommand
       );

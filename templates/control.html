@@ -26,6 +26,8 @@
         <div><span>현재 위치</span><strong id="robotLocation">-</strong></div>
         <div><span>배터리</span><strong id="robotBattery">-</strong></div>
         <div><span>마지막 통신</span><strong id="lastSeen">-</strong></div>
+        <div><span>활성 명령</span><strong id="activeCommandId">-</strong></div>
+        <div><span>완료 명령</span><strong id="lastCompletedCommandId">-</strong></div>
       </div>
     </section>
 
@@ -33,7 +35,7 @@
       <h2 id="controlHeading">원격 명령</h2>
 
       <label for="userLocation">노인 위치</label>
-      <input id="userLocation" type="text" value="노인방" autocomplete="off">
+      <input id="userLocation" type="text" value="거실" autocomplete="off">
 
       <label for="baseLocation">베이스 위치</label>
       <input id="baseLocation" type="text" value="home base" autocomplete="off">
@@ -41,6 +43,7 @@
       <div class="button-grid">
         <button data-command="GO_TO_USER" type="button">노인에게 이동</button>
         <button data-command="CHECK_USER" type="button">상태 확인</button>
+        <button data-command="CALL_GUARDIAN" type="button">보호자 영상통화</button>
         <button data-command="START_RHYTHM_GAME" type="button">리듬게임 시작</button>
         <button data-command="STOP_GAME" class="secondary" type="button">게임 중지</button>
         <button data-command="RETURN_TO_BASE" class="secondary" type="button">베이스로 복귀</button>
