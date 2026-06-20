@@ -33,6 +33,7 @@ import androidx.core.content.ContextCompat;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.robotemi.sdk.BatteryData;
 import com.robotemi.sdk.Robot;
+import com.robotemi.sdk.TtsRequest;
 import com.robotemi.sdk.listeners.OnBatteryStatusChangedListener;
 
 import org.json.JSONObject;
@@ -60,7 +61,7 @@ import com.robotemi.sdk.UserInfo;
 public class MainActivity extends AppCompatActivity implements OnBatteryStatusChangedListener {
 
     private static final String TAG = "MainActivity";
-    private static final String SERVER_URL = "http://10.102.101.67:8000";
+    private static final String SERVER_URL = "http://10.168.141.21:8000";
     private static final int REQUEST_CAMERA_PERMISSION = 100;
     private FillVideoView videoView;
     private TextView textStatus;
@@ -80,6 +81,7 @@ public class MainActivity extends AppCompatActivity implements OnBatteryStatusCh
 
     private boolean emergencyTriggered = false;
     private boolean fallMode = false;
+    private boolean isCalledLaunched = false;
 
     // ───────────────── 생명주기 ──────────────────────────────────────────
 
@@ -102,7 +104,7 @@ public class MainActivity extends AppCompatActivity implements OnBatteryStatusCh
             resetGameState();
         }
 
-        videoView   = findViewById(R.id.videoView);
+        videoView = findViewById(R.id.videoView);
         previewView = findViewById(R.id.previewView);
         cameraExecutor = Executors.newSingleThreadExecutor();
 
@@ -364,6 +366,13 @@ public class MainActivity extends AppCompatActivity implements OnBatteryStatusCh
                     JSONObject json = new JSONObject(result);
                     boolean fallDetected = json.optBoolean("fall_detected", false);
 
+                    Log.d(
+                            "CHECK",
+                            "fallMode=" + fallMode +
+                                    ", fallDetected=" + fallDetected +
+                                    ", emergencyTriggered=" + emergencyTriggered
+                    );
+
                     if (fallMode && fallDetected && !emergencyTriggered) {
                         emergencyTriggered = true;
                         Log.d("FALL_DETECTED", "낙상 감지1");
@@ -448,18 +457,19 @@ public class MainActivity extends AppCompatActivity implements OnBatteryStatusCh
 
     private void callGuardian() {
 
+        robot.speak(TtsRequest.create("낙상이 감지되어 보호자에게 긴급 연락을 시도합니다.", false));
         Robot robot = Robot.getInstance();
 
-        UserInfo adminInfo =
-                robot.getAdminInfo();
+        UserInfo adminInfo = robot.getAdminInfo();
 
         if (adminInfo != null) {
+            String targetName = adminInfo.getName();
+            String targetUserId = adminInfo.getUserId();
 
-            robot.startTelepresence(
-                    adminInfo.getName(),
-                    adminInfo.getUserId(),
-                    com.robotemi.sdk.constants.Platform.MOBILE
-            );
+            isCalledLaunched = true;
+
+            robot.startTelepresence(targetName, targetUserId, com.robotemi.sdk.constants.Platform.MOBILE);
+
 
         } else {
 
@@ -468,7 +478,8 @@ public class MainActivity extends AppCompatActivity implements OnBatteryStatusCh
                     "보호자 정보 없음"
             );
         }
-    }
+
 
     }
+}
 
