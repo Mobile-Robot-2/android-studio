@@ -4,12 +4,17 @@ import android.app.TimePickerDialog;
 import android.content.Intent;
 import android.graphics.drawable.AnimationDrawable;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 import android.widget.Button;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.constraintlayout.widget.ConstraintLayout;
+
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.util.Calendar;
 
@@ -22,11 +27,32 @@ import java.util.Calendar;
 public class StartActivity extends AppCompatActivity {
 
     private static final String TAG = "StartActivity";
+    private RobotApiClient robotApiClient;
+    private Handler serverHandler;
+    private boolean controlLaunchInProgress = false;
+
+    private final Runnable statusHeartbeatRunnable = new Runnable() {
+        @Override
+        public void run() {
+            postIdleStatus();
+            serverHandler.postDelayed(this, 2000);
+        }
+    };
+
+    private final Runnable commandWatchRunnable = new Runnable() {
+        @Override
+        public void run() {
+            watchForServerCommand();
+            serverHandler.postDelayed(this, 1000);
+        }
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_start);
+        robotApiClient = new RobotApiClient(ServerConfig.BASE_URL);
+        serverHandler = new Handler(Looper.getMainLooper());
 
         // ⭐️ 배경 애니메이션 실행 코드
         ConstraintLayout rootLayout = findViewById(R.id.rootLayout);
@@ -87,6 +113,77 @@ public class StartActivity extends AppCompatActivity {
 
             // 사용자 알림 피드백
             Toast.makeText(StartActivity.this, "설정된 모든 알람이 취소되었습니다.", Toast.LENGTH_SHORT).show();
+        });
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        controlLaunchInProgress = false;
+        serverHandler.post(statusHeartbeatRunnable);
+        serverHandler.post(commandWatchRunnable);
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        serverHandler.removeCallbacks(statusHeartbeatRunnable);
+        serverHandler.removeCallbacks(commandWatchRunnable);
+    }
+
+    private void postIdleStatus() {
+        try {
+            JSONObject status = new JSONObject();
+            status.put("robot_id", ServerConfig.ROBOT_ID);
+            status.put("state", "IDLE_AT_BASE");
+            status.put("location", "home base");
+            status.put("battery", JSONObject.NULL);
+            status.put("active_command_id", JSONObject.NULL);
+            status.put("last_completed_command_id", JSONObject.NULL);
+            status.put("command_status", JSONObject.NULL);
+            status.put("last_error", JSONObject.NULL);
+            status.put("status_result", JSONObject.NULL);
+
+            robotApiClient.postStatus(status, new RobotApiClient.JsonCallback() {
+                @Override
+                public void onSuccess(JSONObject json) {
+                    Log.d(TAG, "Idle heartbeat sent");
+                }
+
+                @Override
+                public void onFailure(Exception e) {
+                    Log.e(TAG, "Idle heartbeat failed: " + e.getMessage());
+                }
+            });
+        } catch (JSONException e) {
+            Log.e(TAG, "Idle status JSON failed: " + e.getMessage());
+        }
+    }
+
+    private void watchForServerCommand() {
+        if (controlLaunchInProgress) {
+            return;
+        }
+
+        String lastCommandId = getSharedPreferences("robot_command_state", MODE_PRIVATE)
+                .getString("last_received_command_id", null);
+        robotApiClient.getCommand(ServerConfig.ROBOT_ID, lastCommandId, new RobotApiClient.JsonCallback() {
+            @Override
+            public void onSuccess(JSONObject json) {
+                if (!json.optBoolean("has_command", false)) {
+                    return;
+                }
+
+                controlLaunchInProgress = true;
+                Intent intent = new Intent(StartActivity.this, MainActivity.class);
+                intent.putExtra("CONTROL_MODE", true);
+                startActivity(intent);
+            }
+
+            @Override
+            public void onFailure(Exception e) {
+                Log.e(TAG, "Command watch failed: " + e.getMessage());
+            }
         });
     }
 

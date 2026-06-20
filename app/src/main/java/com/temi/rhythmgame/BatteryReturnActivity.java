@@ -15,6 +15,7 @@ public class BatteryReturnActivity extends AppCompatActivity implements Robot.Tt
 
     private static final String TAG = "BatteryReturnActivity";
     private Robot robot;
+    private RobotStatusHeartbeat heartbeat;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -34,6 +35,7 @@ public class BatteryReturnActivity extends AppCompatActivity implements Robot.Tt
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
         robot = Robot.getInstance();
+        heartbeat = new RobotStatusHeartbeat("RETURNING_TO_BASE", "home base");
 
         // ⭐️ 2. TTS 리스너 등록 (내가 말 끝나는 걸 듣겠다!)
         robot.addTtsListener(this);
@@ -52,6 +54,7 @@ public class BatteryReturnActivity extends AppCompatActivity implements Robot.Tt
             // 💡 주의: 테미 기기에 저장된 장소 이름과 대소문자/띄어쓰기까지 100% 똑같아야 합니다.
             // 안 간다면 "home base" 인지 "Home Base" 인지 테미 설정화면에서 꼭 확인해 보세요!
             robot.goTo("home base");
+            heartbeat.update("RETURNING_TO_BASE", "home base");
 
             // 한 번 명령을 내렸으므로 리스너 해제 (중복 호출 방지)
             robot.removeTtsListener(this);
@@ -64,6 +67,25 @@ public class BatteryReturnActivity extends AppCompatActivity implements Robot.Tt
         // ⭐️ 안전장치: 액티비티가 종료될 때 리스너를 꼭 지워줍니다.
         if (robot != null) {
             robot.removeTtsListener(this);
+        }
+        if (heartbeat != null) {
+            heartbeat.stop();
+        }
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        if (heartbeat != null) {
+            heartbeat.start();
+        }
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        if (heartbeat != null) {
+            heartbeat.stop();
         }
     }
 }

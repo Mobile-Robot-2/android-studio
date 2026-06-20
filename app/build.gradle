@@ -68,6 +68,6 @@ dependencies {
     // Lottie
     implementation 'com.airbnb.android:lottie:5.0.2'
 
-    // OkHttp (PoseAnalysisActivity 서버 통신용)
-    implementation 'com.squareup.okhttp3:okhttp:4.11.0'
+    // OkHttp (FastAPI 서버 통신용)
+    implementation 'com.squareup.okhttp3:okhttp:3.14.9'
 }

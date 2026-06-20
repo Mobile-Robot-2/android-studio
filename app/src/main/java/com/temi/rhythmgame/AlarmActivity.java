@@ -19,6 +19,7 @@ public class AlarmActivity extends AppCompatActivity {
     private Robot robot;
     private CountDownTimer countDownTimer;
     private TextView tvTimer;
+    private RobotStatusHeartbeat heartbeat;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -42,6 +43,7 @@ public class AlarmActivity extends AppCompatActivity {
         }
 
         robot = Robot.getInstance();
+        heartbeat = new RobotStatusHeartbeat("MOVING_TO_USER", "거실");
         tvTimer = findViewById(R.id.tvTimer);
 
         // [추가] 1. 홈 베이스에서 분리되어 어르신이 계신 지정된 장소로 이동
@@ -69,6 +71,7 @@ public class AlarmActivity extends AppCompatActivity {
                 robot.stopMovement();
                 robot.speak(TtsRequest.create("응답이 확인되지 않아 알람을 종료하고 대기 장소로 복귀합니다.", false));
                 robot.goTo("home base");
+                heartbeat.update("RETURNING_TO_BASE", "home base");
                 finish();
             }
         }.start();
@@ -89,6 +92,22 @@ public class AlarmActivity extends AppCompatActivity {
     }
 
     @Override
+    protected void onStart() {
+        super.onStart();
+        if (heartbeat != null) {
+            heartbeat.start();
+        }
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        if (heartbeat != null) {
+            heartbeat.stop();
+        }
+    }
+
+    @Override
     protected void onDestroy() {
         super.onDestroy();
         if (robot != null) {
@@ -96,6 +115,9 @@ public class AlarmActivity extends AppCompatActivity {
         }
         if (countDownTimer != null) {
             countDownTimer.cancel();
+        }
+        if (heartbeat != null) {
+            heartbeat.stop();
         }
     }
 }

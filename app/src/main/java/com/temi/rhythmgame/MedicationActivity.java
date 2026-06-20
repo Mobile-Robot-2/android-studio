@@ -26,6 +26,7 @@ public class MedicationActivity extends AppCompatActivity {
     private TextView tvMessage;
     private TextView tvTimer;
     private Button btnMedicationDone;
+    private RobotStatusHeartbeat heartbeat;
 
     private boolean isCallLaunched = false;
 
@@ -52,6 +53,7 @@ public class MedicationActivity extends AppCompatActivity {
         }
 
         robot = Robot.getInstance();
+        heartbeat = new RobotStatusHeartbeat("MOVING_TO_USER", "거실");
 
         tvMessage = findViewById(R.id.tvMessage);
         tvTimer = findViewById(R.id.tvTimer);
@@ -106,8 +108,25 @@ public class MedicationActivity extends AppCompatActivity {
 
             robot.setTrackUserOn(false);
             robot.goTo("home base");
+            heartbeat.update("RETURNING_TO_BASE", "home base");
             finish();
         });
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        if (heartbeat != null) {
+            heartbeat.start();
+        }
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        if (heartbeat != null) {
+            heartbeat.stop();
+        }
     }
 
     // ────────────────────────────────────────────────────────
@@ -128,6 +147,7 @@ public class MedicationActivity extends AppCompatActivity {
             if (robot != null) {
                 robot.setTrackUserOn(false);
                 robot.goTo("home base");
+                heartbeat.update("RETURNING_TO_BASE", "home base");
             }
 
             // 복귀 명령이 내려졌으니 이제 완전히 앱 종료
@@ -143,6 +163,9 @@ public class MedicationActivity extends AppCompatActivity {
         }
         if (countDownTimer != null) {
             countDownTimer.cancel();
+        }
+        if (heartbeat != null) {
+            heartbeat.stop();
         }
     }
 }

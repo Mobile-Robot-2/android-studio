@@ -35,6 +35,7 @@ public class PrepareActivity extends AppCompatActivity {
 
     private CountDownTimer countDownTimer;
     private final Handler handler = new Handler(Looper.getMainLooper());
+    private RobotStatusHeartbeat heartbeat;
 
     /** 화면에 누적되는 체크 결과 로그 */
     private final List<String> logLines = new ArrayList<>();
@@ -78,9 +79,26 @@ public class PrepareActivity extends AppCompatActivity {
 
         tvCountdown = findViewById(R.id.tvCountdown);
         tvCheckLog  = findViewById(R.id.tvCheckLog);
+        heartbeat = new RobotStatusHeartbeat("READY_FOR_GAME", "거실");
 
         scheduleChecks();
         startCountdown();
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        if (heartbeat != null) {
+            heartbeat.start();
+        }
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        if (heartbeat != null) {
+            heartbeat.stop();
+        }
     }
 
     @Override
@@ -88,6 +106,7 @@ public class PrepareActivity extends AppCompatActivity {
         super.onDestroy();
         if (countDownTimer != null) countDownTimer.cancel();
         handler.removeCallbacksAndMessages(null); // 모든 대기 중인 체크 취소
+        if (heartbeat != null) heartbeat.stop();
     }
 
     // ═══════════════════════════ 체크 스케줄링 ════════════════════════════

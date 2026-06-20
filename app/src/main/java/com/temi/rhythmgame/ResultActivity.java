@@ -44,6 +44,7 @@ public class ResultActivity extends AppCompatActivity {
     private int hitCount = 0;
 
     private Robot robot;
+    private RobotStatusHeartbeat heartbeat;
 
     // ⭐️ 요구 동작 상수 정의 (MediaPipe JSON 키값 대응)
     private static final int ACTION_LEFT = 1;   // LEFT_HAND_UP
@@ -94,6 +95,7 @@ public class ResultActivity extends AppCompatActivity {
         }
 
         robot = Robot.getInstance();
+        heartbeat = new RobotStatusHeartbeat("READY_FOR_GAME", "거실");
 
         TextView tvLoading = findViewById(R.id.tvLoading);
         ProgressBar progressBar = findViewById(R.id.progressBar);
@@ -150,6 +152,22 @@ public class ResultActivity extends AppCompatActivity {
             startActivity(intent);
             finish();
         });
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        if (heartbeat != null) {
+            heartbeat.start();
+        }
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        if (heartbeat != null) {
+            heartbeat.stop();
+        }
     }
 
     private void fetchFirebaseDataAndCalculate(String startTimeStr, String endTimeStr, int gameLevel) {
@@ -300,5 +318,6 @@ public class ResultActivity extends AppCompatActivity {
         super.onDestroy();
         if (loadingTimer != null) loadingTimer.cancel();
         if (robot != null) robot.cancelAllTtsRequests();
+        if (heartbeat != null) heartbeat.stop();
     }
 }

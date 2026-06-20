@@ -45,7 +45,6 @@ import okhttp3.Response;
 
 public class PoseAnalysisActivity extends AppCompatActivity {
 
-    private static final String SERVER_URL = "http://172.17.66.77:8000";
     private static final int CAMERA_PERMISSION_REQUEST_CODE = 1001;
 
     private PreviewView previewView;
@@ -53,6 +52,7 @@ public class PoseAnalysisActivity extends AppCompatActivity {
     private ExecutorService cameraExecutor;
     private boolean mirrorOverlay = true;
     private final OkHttpClient client = new OkHttpClient();
+    private RobotStatusHeartbeat heartbeat;
 
     private long lastSendTime = 0;
 
@@ -64,6 +64,7 @@ public class PoseAnalysisActivity extends AppCompatActivity {
         previewView = findViewById(R.id.previewView);
         textStatus = findViewById(R.id.textStatus);
         cameraExecutor = Executors.newSingleThreadExecutor();
+        heartbeat = new RobotStatusHeartbeat("CHECKING_USER", "거실");
 
         Button btnStart = findViewById(R.id.btnStart);
         btnStart.setOnClickListener(v -> {
@@ -80,6 +81,22 @@ public class PoseAnalysisActivity extends AppCompatActivity {
                     new String[]{Manifest.permission.CAMERA},
                     CAMERA_PERMISSION_REQUEST_CODE
             );
+        }
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        if (heartbeat != null) {
+            heartbeat.start();
+        }
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        if (heartbeat != null) {
+            heartbeat.stop();
         }
     }
 
@@ -200,11 +217,11 @@ public class PoseAnalysisActivity extends AppCompatActivity {
 
         MultipartBody requestBody = new MultipartBody.Builder()
                 .setType(MultipartBody.FORM)
-                .addFormDataPart("file", "frame.jpg", imageBody)
+                .addFormDataPart("image", "frame.jpg", imageBody)
                 .build();
 
         Request request = new Request.Builder()
-                .url(SERVER_URL + "/analyze")
+                .url(ServerConfig.BASE_URL + "/analyze_frame")
                 .post(requestBody)
                 .build();
 
@@ -234,7 +251,7 @@ public class PoseAnalysisActivity extends AppCompatActivity {
         );
 
         Request request = new Request.Builder()
-                .url(SERVER_URL + "/reset")
+                .url(ServerConfig.BASE_URL + "/reset")
                 .post(body)
                 .build();
 
@@ -272,6 +289,9 @@ public class PoseAnalysisActivity extends AppCompatActivity {
         super.onDestroy();
         if (cameraExecutor != null) {
             cameraExecutor.shutdown();
+        }
+        if (heartbeat != null) {
+            heartbeat.stop();
         }
     }
 }

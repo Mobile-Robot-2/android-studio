@@ -1,6 +1,7 @@
 package com.temi.rhythmgame;
 
 import android.Manifest;
+import android.content.SharedPreferences;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.ImageFormat;
@@ -9,10 +10,11 @@ import android.graphics.YuvImage;
 import android.media.Image;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 import android.util.Size;
 import android.view.View;
-import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -34,8 +36,10 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.robotemi.sdk.BatteryData;
 import com.robotemi.sdk.Robot;
 import com.robotemi.sdk.TtsRequest;
+import com.robotemi.sdk.listeners.OnGoToLocationStatusChangedListener;
 import com.robotemi.sdk.listeners.OnBatteryStatusChangedListener;
 
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.ByteArrayOutputStream;
@@ -48,20 +52,13 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import okhttp3.Call;
-import okhttp3.Callback;
-import okhttp3.MediaType;
-import okhttp3.MultipartBody;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.RequestBody;
-import okhttp3.Response;
 import com.robotemi.sdk.UserInfo;
 
-public class MainActivity extends AppCompatActivity implements OnBatteryStatusChangedListener {
+public class MainActivity extends AppCompatActivity implements
+        OnBatteryStatusChangedListener,
+        OnGoToLocationStatusChangedListener {
 
     private static final String TAG = "MainActivity";
-    private static final String SERVER_URL = "http://10.168.141.21:8000";
     private static final int REQUEST_CAMERA_PERMISSION = 100;
     private FillVideoView videoView;
     private TextView textStatus;
@@ -71,17 +68,53 @@ public class MainActivity extends AppCompatActivity implements OnBatteryStatusCh
     private SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.KOREA);
 
     private Robot robot;
+    private RobotApiClient robotApiClient;
+    private SharedPreferences commandPrefs;
+    private final Handler serverHandler = new Handler(Looper.getMainLooper());
 
     private int currentVideoType = 1;
     private ExecutorService cameraExecutor;
     private boolean mirrorOverlay = true;
-    private final OkHttpClient client = new OkHttpClient();
 
     private long lastSendTime = 0;
 
     private boolean emergencyTriggered = false;
     private boolean fallMode = false;
+    private boolean controlMode = false;
     private boolean isCalledLaunched = false;
+    private boolean analyzeInFlight = false;
+    private boolean singleCheckRequested = false;
+    private boolean gameRunning = false;
+    private boolean videoConfigured = false;
+    private long gameStartedAtMillis = 0;
+
+    private int currentBattery = -1;
+    private boolean currentCharging = false;
+    private String robotState = "IDLE_AT_BASE";
+    private String currentLocation = "home base";
+    private String activeCommandId = null;
+    private String activeCommandName = null;
+    private String lastReceivedCommandId = null;
+    private String lastCompletedCommandId = null;
+    private String commandStatus = null;
+    private String lastError = null;
+    private JSONObject statusResult = null;
+
+    private final Runnable commandPollRunnable = new Runnable() {
+        @Override
+        public void run() {
+            pollCommand();
+            serverHandler.postDelayed(this, 1000);
+        }
+    };
+
+    private final Runnable statusHeartbeatRunnable = new Runnable() {
+        @Override
+        public void run() {
+            postRobotStatus();
+            serverHandler.postDelayed(this, 2000);
+        }
+    };
 
     // ───────────────── 생명주기 ──────────────────────────────────────────
 
@@ -94,7 +127,13 @@ public class MainActivity extends AppCompatActivity implements OnBatteryStatusCh
         hideSystemUI();
         setContentView(R.layout.activity_main);
 
+        robotApiClient = new RobotApiClient(ServerConfig.BASE_URL);
+        commandPrefs = getSharedPreferences("robot_command_state", MODE_PRIVATE);
+        lastReceivedCommandId = commandPrefs.getString("last_received_command_id", null);
+        lastCompletedCommandId = commandPrefs.getString("last_completed_command_id", null);
+
         fallMode = getIntent().getBooleanExtra("fall_mode", false);
+        controlMode = getIntent().getBooleanExtra("CONTROL_MODE", false);
         Log.d("FALL_MODE", "fallMode = " + fallMode);
 
         boolean reset =
@@ -109,9 +148,10 @@ public class MainActivity extends AppCompatActivity implements OnBatteryStatusCh
         cameraExecutor = Executors.newSingleThreadExecutor();
 
         textStatus = findViewById(R.id.textStatus);
-        textStatus.setVisibility(View.GONE);
+        textStatus.setVisibility(View.VISIBLE);
+        updateStatusText();
 
-        if (!fallMode) {
+        if (!fallMode && !controlMode) {
             setupVideo();
         }
 
@@ -131,7 +171,10 @@ public class MainActivity extends AppCompatActivity implements OnBatteryStatusCh
         super.onStart();
         if (robot != null) {
             robot.addOnBatteryStatusChangedListener(this);
+            robot.addOnGoToLocationStatusChangedListener(this);
         }
+        serverHandler.post(commandPollRunnable);
+        serverHandler.post(statusHeartbeatRunnable);
     }
 
     @Override
@@ -139,13 +182,18 @@ public class MainActivity extends AppCompatActivity implements OnBatteryStatusCh
         super.onStop();
         if (robot != null) {
             robot.removeOnBatteryStatusChangedListener(this);
+            robot.removeOnGoToLocationStatusChangedListener(this);
         }
+        serverHandler.removeCallbacks(commandPollRunnable);
+        serverHandler.removeCallbacks(statusHeartbeatRunnable);
     }
 
     @Override
     public void onBatteryStatusChanged(BatteryData batteryData) {
         int batteryLevel = batteryData.getBatteryPercentage();
         boolean isCharging = batteryData.isCharging();
+        currentBattery = batteryLevel;
+        currentCharging = isCharging;
 
         // 예시: 20% 이하로 떨어졌고 충전 중이 아닐 때
         if (batteryLevel <= 34 && !isCharging) {
@@ -172,6 +220,7 @@ public class MainActivity extends AppCompatActivity implements OnBatteryStatusCh
         if (cameraExecutor != null) {
             cameraExecutor.shutdown();
         }
+        serverHandler.removeCallbacksAndMessages(null);
     }
 
     // ───────────────── 전체화면 ──────────────────────────────────────────
@@ -190,6 +239,7 @@ public class MainActivity extends AppCompatActivity implements OnBatteryStatusCh
     // ───────────────── 영상 ──────────────────────────────────────────────
 
     private void setupVideo() {
+        videoConfigured = true;
         // ⭐️ 1. PrepareActivity로부터 전달받은 비디오 타입 번호 꺼내기 (기본값은 1)
         int videoType = getIntent().getIntExtra("videoType", 1);
         this.currentVideoType = videoType;
@@ -208,11 +258,16 @@ public class MainActivity extends AppCompatActivity implements OnBatteryStatusCh
 
         videoView.setOnPreparedListener(mp -> {
             videoView.start();
+            gameRunning = true;
+            robotState = "PLAYING_GAME";
+            gameStartedAtMillis = System.currentTimeMillis();
             gameStartTimeStr = sdf.format(new Date());
             Log.d(TAG, "영상 재생 시작 시간: " + gameStartTimeStr);
+            updateStatusText();
         });
 
         videoView.setOnCompletionListener(mp -> {
+            gameRunning = false;
             gameEndTimeStr = sdf.format(new Date());
             Log.d(TAG, "영상 종료 시간: " + gameEndTimeStr);
             goToResult();
@@ -225,6 +280,7 @@ public class MainActivity extends AppCompatActivity implements OnBatteryStatusCh
     }
 
     private void goToResult() {
+        completeActiveCommand(null);
         Intent intent = new Intent(MainActivity.this, ResultActivity.class);
         intent.putExtra("startTime", gameStartTimeStr);
         intent.putExtra("endTime", gameEndTimeStr);
@@ -323,7 +379,9 @@ public class MainActivity extends AppCompatActivity implements OnBatteryStatusCh
             );
 
             byte[] jpegBytes = out.toByteArray();
-            sendImageToServer(jpegBytes);
+            if (gameRunning || fallMode || singleCheckRequested) {
+                sendImageToServer(jpegBytes);
+            }
 
         } catch (Exception e) {
             runOnUiThread(() ->
@@ -335,36 +393,31 @@ public class MainActivity extends AppCompatActivity implements OnBatteryStatusCh
     }
 
     private void sendImageToServer(byte[] jpegBytes) {
-        RequestBody imageBody = RequestBody.create(
-                MediaType.parse("image/jpeg"),
-                jpegBytes
-        );
+        if (analyzeInFlight) {
+            return;
+        }
+        analyzeInFlight = true;
+        Long elapsedMillis = gameStartedAtMillis > 0
+                ? System.currentTimeMillis() - gameStartedAtMillis
+                : null;
 
-        MultipartBody requestBody = new MultipartBody.Builder()
-                .setType(MultipartBody.FORM)
-                .addFormDataPart("file", "frame.jpg", imageBody)
-                .build();
-
-        Request request = new Request.Builder()
-                .url(SERVER_URL + "/analyze")
-                .post(requestBody)
-                .build();
-
-        client.newCall(request).enqueue(new Callback() {
-
+        robotApiClient.analyzeFrame(jpegBytes, elapsedMillis, new RobotApiClient.JsonCallback() {
             @Override
-            public void onFailure(Call call, IOException e) {
+            public void onFailure(Exception e) {
+                analyzeInFlight = false;
+                lastError = e.getMessage();
                 Log.e("SERVER_ERROR", e.getMessage());
+                updateStatusText();
             }
 
             @Override
-            public void onResponse(Call call, Response response) throws IOException {
-                String result = response.body().string();
-                Log.d("SERVER_RESPONSE", result);
-
+            public void onSuccess(JSONObject json) {
+                analyzeInFlight = false;
+                Log.d("SERVER_RESPONSE", json.toString());
                 try {
-                    JSONObject json = new JSONObject(result);
                     boolean fallDetected = json.optBoolean("fall_detected", false);
+                    String fallStatus = json.optString("fall_status", "NORMAL");
+                    statusResult = json;
 
                     Log.d(
                             "CHECK",
@@ -372,6 +425,18 @@ public class MainActivity extends AppCompatActivity implements OnBatteryStatusCh
                                     ", fallDetected=" + fallDetected +
                                     ", emergencyTriggered=" + emergencyTriggered
                     );
+
+                    if (singleCheckRequested) {
+                        singleCheckRequested = false;
+                        robotState = "READY_FOR_GAME";
+                        completeActiveCommand(json);
+                    }
+
+                    if ((fallDetected || "FALL_CONFIRMED".equals(fallStatus)) && gameRunning) {
+                        runOnUiThread(() ->
+                                Toast.makeText(MainActivity.this, "낙상 의심", Toast.LENGTH_SHORT).show()
+                        );
+                    }
 
                     if (fallMode && fallDetected && !emergencyTriggered) {
                         emergencyTriggered = true;
@@ -382,34 +447,28 @@ public class MainActivity extends AppCompatActivity implements OnBatteryStatusCh
                             callGuardian();
                         });
                     }
+                    updateStatusText();
+                    postRobotStatus();
                 } catch (Exception e) {
+                    lastError = e.getMessage();
                     Log.e("JSON_ERROR", e.getMessage());
+                    updateStatusText();
                 }
             }
         });
     }
 
     private void resetGameState() {
-        RequestBody body = RequestBody.create(
-                MediaType.parse("text/plain"),
-                ""
-        );
-
-        Request request = new Request.Builder()
-                .url(SERVER_URL + "/reset")
-                .post(body)
-                .build();
-
-        client.newCall(request).enqueue(new Callback() {
-
+        robotApiClient.reset(new RobotApiClient.JsonCallback() {
             @Override
-            public void onFailure(Call call, IOException e) {
+            public void onFailure(Exception e) {
+                lastError = e.getMessage();
                 runOnUiThread(() ->
                         textStatus.setText("게임 시작 실패\n" + e.getMessage()));
             }
 
             @Override
-            public void onResponse(Call call, Response response) throws IOException {
+            public void onSuccess(JSONObject json) {
                 runOnUiThread(() -> textStatus.setText("게임 시작!"));
             }
         });
@@ -455,7 +514,7 @@ public class MainActivity extends AppCompatActivity implements OnBatteryStatusCh
         }
     }
 
-    private void callGuardian() {
+    private boolean callGuardian() {
 
         robot.speak(TtsRequest.create("낙상이 감지되어 보호자에게 긴급 연락을 시도합니다.", false));
         Robot robot = Robot.getInstance();
@@ -469,6 +528,7 @@ public class MainActivity extends AppCompatActivity implements OnBatteryStatusCh
             isCalledLaunched = true;
 
             robot.startTelepresence(targetName, targetUserId, com.robotemi.sdk.constants.Platform.MOBILE);
+            return true;
 
 
         } else {
@@ -477,9 +537,280 @@ public class MainActivity extends AppCompatActivity implements OnBatteryStatusCh
                     "CALL",
                     "보호자 정보 없음"
             );
+            return false;
         }
 
 
+    }
+
+    private void pollCommand() {
+        if (activeCommandId != null) {
+            return;
+        }
+
+        robotApiClient.getCommand(
+                ServerConfig.ROBOT_ID,
+                lastReceivedCommandId,
+                new RobotApiClient.JsonCallback() {
+                    @Override
+                    public void onSuccess(JSONObject json) {
+                        if (!json.optBoolean("has_command", false)) {
+                            lastError = null;
+                            return;
+                        }
+
+                        JSONObject command = json.optJSONObject("command");
+                        if (command == null) {
+                            return;
+                        }
+
+                        String commandId = command.optString("command_id", "");
+                        if (commandId.isEmpty()
+                                || commandId.equals(lastReceivedCommandId)
+                                || commandId.equals(lastCompletedCommandId)) {
+                            return;
+                        }
+
+                        lastReceivedCommandId = commandId;
+                        commandPrefs.edit()
+                                .putString("last_received_command_id", commandId)
+                                .apply();
+                        runOnUiThread(() -> handleCommand(command));
+                    }
+
+                    @Override
+                    public void onFailure(Exception e) {
+                        lastError = e.getMessage();
+                        updateStatusText();
+                    }
+                }
+        );
+    }
+
+    private void handleCommand(JSONObject command) {
+        activeCommandId = command.optString("command_id", null);
+        activeCommandName = command.optString("command", "");
+        commandStatus = "ACKNOWLEDGED";
+        lastError = null;
+        postRobotStatus();
+
+        String location = command.optString("location", "");
+        Log.d(TAG, "Command received: " + activeCommandName + " id=" + activeCommandId);
+
+        switch (activeCommandName) {
+            case "GO_TO_USER":
+                if (location.isEmpty()) location = "거실";
+                startNavigation(location, "MOVING_TO_USER");
+                break;
+            case "CHECK_USER":
+                robotState = "CHECKING_USER";
+                singleCheckRequested = true;
+                commandStatus = "RUNNING";
+                updateStatusText();
+                postRobotStatus();
+                break;
+            case "START_RHYTHM_GAME":
+                startGameFromCommand();
+                break;
+            case "STOP_GAME":
+                stopGameFromCommand();
+                break;
+            case "RETURN_TO_BASE":
+                if (location.isEmpty()) location = "home base";
+                stopLocalWork();
+                startNavigation(location, "RETURNING_TO_BASE");
+                break;
+            case "CALL_GUARDIAN":
+                stopLocalWork();
+                robotState = "CALLING_GUARDIAN";
+                commandStatus = "RUNNING";
+                updateStatusText();
+                postRobotStatus();
+                if (!callGuardian()) {
+                    failActiveCommand("Guardian information not found");
+                }
+                break;
+            case "EMERGENCY_STOP":
+                stopLocalWork();
+                robotState = "EMERGENCY_STOPPED";
+                commandStatus = "COMPLETED";
+                if (robot != null) {
+                    robot.stopMovement();
+                }
+                completeActiveCommand(null);
+                break;
+            default:
+                failActiveCommand("Unknown command: " + activeCommandName);
+                break;
+        }
+    }
+
+    private void startNavigation(String location, String state) {
+        if (location == null || location.trim().isEmpty()) {
+            failActiveCommand("Location is empty");
+            return;
+        }
+
+        if (robot == null) {
+            failActiveCommand("Robot is not ready");
+            return;
+        }
+
+        robotState = state;
+        currentLocation = location;
+        commandStatus = "RUNNING";
+        updateStatusText();
+        postRobotStatus();
+        robot.goTo(location);
+    }
+
+    private void startGameFromCommand() {
+        robotState = "PLAYING_GAME";
+        commandStatus = "RUNNING";
+        resetGameState();
+        if (!videoConfigured) {
+            setupVideo();
+        } else if (videoView != null && !videoView.isPlaying()) {
+            videoView.start();
+            gameRunning = true;
+            gameStartedAtMillis = System.currentTimeMillis();
+        }
+        completeActiveCommand(null);
+    }
+
+    private void stopGameFromCommand() {
+        stopLocalWork();
+        robotState = "READY_FOR_GAME";
+        completeActiveCommand(null);
+    }
+
+    private void stopLocalWork() {
+        gameRunning = false;
+        singleCheckRequested = false;
+        if (videoView != null && videoView.isPlaying()) {
+            videoView.pause();
+        }
+    }
+
+    private void completeActiveCommand(JSONObject result) {
+        commandStatus = "COMPLETED";
+        statusResult = result != null ? result : statusResult;
+        lastCompletedCommandId = activeCommandId;
+        if (lastCompletedCommandId != null) {
+            commandPrefs.edit()
+                    .putString("last_completed_command_id", lastCompletedCommandId)
+                    .apply();
+        }
+        postRobotStatus();
+        activeCommandId = null;
+        activeCommandName = null;
+        commandStatus = null;
+        updateStatusText();
+    }
+
+    private void failActiveCommand(String error) {
+        robotState = "ERROR";
+        commandStatus = "FAILED";
+        lastError = error;
+        postRobotStatus();
+        activeCommandId = null;
+        activeCommandName = null;
+        updateStatusText();
+    }
+
+    private void postRobotStatus() {
+        if (robotApiClient == null) {
+            return;
+        }
+
+        try {
+            JSONObject status = new JSONObject();
+            status.put("robot_id", ServerConfig.ROBOT_ID);
+            status.put("state", robotState);
+            status.put("location", currentLocation);
+            status.put("battery", currentBattery >= 0 ? currentBattery : JSONObject.NULL);
+            status.put("charging", currentCharging);
+            status.put("active_command_id", activeCommandId != null ? activeCommandId : JSONObject.NULL);
+            status.put("last_completed_command_id", lastCompletedCommandId != null ? lastCompletedCommandId : JSONObject.NULL);
+            status.put("command_status", commandStatus != null ? commandStatus : JSONObject.NULL);
+            status.put("last_error", lastError != null ? lastError : JSONObject.NULL);
+            status.put("status_result", statusResult != null ? statusResult : JSONObject.NULL);
+
+            robotApiClient.postStatus(status, new RobotApiClient.JsonCallback() {
+                @Override
+                public void onSuccess(JSONObject json) {
+                    lastError = null;
+                }
+
+                @Override
+                public void onFailure(Exception e) {
+                    lastError = e.getMessage();
+                }
+            });
+        } catch (JSONException e) {
+            lastError = e.getMessage();
+        }
+    }
+
+    private void updateStatusText() {
+        runOnUiThread(() -> {
+            if (textStatus == null) {
+                return;
+            }
+
+            StringBuilder sb = new StringBuilder();
+            sb.append("서버: ").append(ServerConfig.BASE_URL).append('\n');
+            sb.append("상태: ").append(robotState).append('\n');
+            sb.append("위치: ").append(currentLocation).append('\n');
+            if (activeCommandId != null) {
+                sb.append("명령: ").append(activeCommandName).append(" / ").append(activeCommandId).append('\n');
+            }
+            if (statusResult != null) {
+                sb.append("동작: ").append(statusResult.optString("detected_action", "-")).append('\n');
+                sb.append("정답: ").append(statusResult.optString("expected_action", "-")).append('\n');
+                sb.append("점수: ").append(statusResult.optInt("total_pose_score", 0)).append('\n');
+                sb.append("낙상: ").append(statusResult.optBoolean("fall_detected", false))
+                        .append(" / ").append(statusResult.optString("fall_status", "NORMAL")).append('\n');
+                JSONObject counts = statusResult.optJSONObject("counts");
+                if (counts != null) {
+                    sb.append("L:").append(counts.optInt("LEFT_HAND_UP", 0))
+                            .append(" R:").append(counts.optInt("RIGHT_HAND_UP", 0))
+                            .append(" OPEN:").append(counts.optInt("ARMS_OPEN", 0))
+                            .append(" CLAP:").append(counts.optInt("CLAP", 0)).append('\n');
+                }
+            }
+            if (lastError != null) {
+                sb.append("오류: ").append(lastError);
+            }
+            textStatus.setText(sb.toString());
+        });
+    }
+
+    @Override
+    public void onGoToLocationStatusChanged(
+            String location,
+            String status,
+            int descriptionId,
+            String description
+    ) {
+        Log.d(TAG, "goTo status: " + location + " / " + status + " / " + description);
+        currentLocation = location;
+
+        if (OnGoToLocationStatusChangedListener.COMPLETE.equals(status)) {
+            if ("GO_TO_USER".equals(activeCommandName)) {
+                robotState = "CHECKING_USER";
+                singleCheckRequested = true;
+                commandStatus = "RUNNING";
+            } else if ("RETURN_TO_BASE".equals(activeCommandName)) {
+                robotState = "IDLE_AT_BASE";
+                completeActiveCommand(null);
+            }
+        } else if (OnGoToLocationStatusChangedListener.ABORT.equals(status)) {
+            failActiveCommand("Navigation aborted: " + description);
+        }
+
+        updateStatusText();
+        postRobotStatus();
     }
 
     @Override
@@ -493,6 +824,9 @@ public class MainActivity extends AppCompatActivity implements OnBatteryStatusCh
 
             // 다음 통화를 위해 초기화
             isCalledLaunched = false;
+            robotState = "RETURNING_TO_BASE";
+            commandStatus = "COMPLETED";
+            completeActiveCommand(null);
 
             // 시작 화면으로 이동
             Intent intent = new Intent(MainActivity.this, StartActivity.class);
