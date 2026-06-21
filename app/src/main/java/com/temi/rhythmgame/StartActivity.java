@@ -86,6 +86,7 @@ public class StartActivity extends AppCompatActivity {
         animationDrawable.start();
 
         robot = Robot.getInstance();
+        robot.addAsrListener(asrListener);
         Log.d(TAG, "StartActivity 생성됨");
 
         // 1. 기존 게임 시작 버튼
@@ -187,7 +188,6 @@ public class StartActivity extends AppCompatActivity {
     protected void onStart() {
         super.onStart();
         controlLaunchInProgress = false;
-        if (robot != null) robot.addAsrListener(asrListener);
         serverHandler.post(statusHeartbeatRunnable);
         serverHandler.post(commandWatchRunnable);
     }
@@ -195,7 +195,6 @@ public class StartActivity extends AppCompatActivity {
     @Override
     protected void onStop() {
         super.onStop();
-        if (robot != null) robot.removeAsrListener(asrListener);
         serverHandler.removeCallbacks(statusHeartbeatRunnable);
         serverHandler.removeCallbacks(commandWatchRunnable);
     }
@@ -399,5 +398,11 @@ public class StartActivity extends AppCompatActivity {
                 );
 
         timePickerDialog.show();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (robot != null) robot.removeAsrListener(asrListener);
     }
 }
