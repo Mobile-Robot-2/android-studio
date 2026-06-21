@@ -148,7 +148,7 @@ public class MainActivity extends AppCompatActivity implements
         cameraExecutor = Executors.newSingleThreadExecutor();
 
         textStatus = findViewById(R.id.textStatus);
-        textStatus.setVisibility(View.VISIBLE);
+        textStatus.setVisibility(View.GONE);
         updateStatusText();
 
         if (!fallMode && !controlMode) {
