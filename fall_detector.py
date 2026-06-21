@@ -20,14 +20,11 @@ MIN_CENTER_DROP = 0.12
 HORIZONTAL_ANGLE_DEGREES = 50.0
 STRONG_HORIZONTAL_ANGLE_DEGREES = 75.0
 UPPER_BODY_HORIZONTAL_ANGLE_DEGREES = 48.0
-FLOOR_HEAD_Y = 0.42
-FLOOR_SHOULDER_Y = 0.46
-FLOOR_HIP_Y = 0.52
-FLOOR_BODY_CENTER_Y = 0.48
 LOW_HEAD_Y = 0.38
 LOW_HIP_Y = 0.48
 LOW_SHOULDER_Y = 0.36
 BODY_CENTER_LOW_Y = 0.42
+MIN_UPPER_BODY_VISIBILITY = 0.45
 
 
 class FallDetector:
@@ -57,20 +54,26 @@ class FallDetector:
         strong_horizontal = (
             metrics["torso_angle"] >= STRONG_HORIZONTAL_ANGLE_DEGREES
         )
-        fallen_pose = metrics["horizontal"] and (
-            metrics["low_position"] or strong_horizontal
+        fallen_pose = (
+            metrics["head_shoulders_visible"]
+            and metrics["horizontal"]
+            and (metrics["low_position"] or strong_horizontal)
         )
-        obvious_lying_pose = metrics["upper_body_horizontal"] and metrics["low_position"]
-        lying_on_floor = metrics["lying_on_floor"]
+        obvious_lying_pose = (
+            metrics["head_shoulders_visible"]
+            and metrics["upper_body_horizontal"]
+        )
         fall_evidence = fallen_pose or (
-            metrics["sudden_drop"] and (metrics["horizontal"] or metrics["low_position"])
-        ) or obvious_lying_pose or lying_on_floor
+            metrics["head_shoulders_visible"]
+            and metrics["sudden_drop"]
+            and (metrics["horizontal"] or metrics["upper_body_horizontal"])
+        ) or obvious_lying_pose
 
         if fall_evidence:
             self.last_evidence_time = now
 
         if self.status == "NORMAL":
-            if lying_on_floor or obvious_lying_pose:
+            if obvious_lying_pose:
                 self.status = "FALL_CONFIRMED"
                 self.suspected_since = now
                 self.recovery_since = None
@@ -80,7 +83,7 @@ class FallDetector:
                 self.suspected_since = now
 
         elif self.status == "FALL_SUSPECTED":
-            if lying_on_floor or obvious_lying_pose:
+            if obvious_lying_pose:
                 self.status = "FALL_CONFIRMED"
                 self.recovery_since = None
                 self._create_event()
@@ -100,7 +103,6 @@ class FallDetector:
                 not metrics["horizontal"]
                 and not metrics["upper_body_horizontal"]
                 and not metrics["low_position"]
-                and not metrics["lying_on_floor"]
             )
             if recovered_pose:
                 if self.recovery_since is None:
@@ -190,23 +192,17 @@ class FallDetector:
         upper_body_horizontal = (
             upper_body_angle >= UPPER_BODY_HORIZONTAL_ANGLE_DEGREES
         )
+        head_shoulders_visible = (
+            getattr(nose, "visibility", 1.0) >= MIN_UPPER_BODY_VISIBILITY
+            and getattr(left_shoulder, "visibility", 1.0) >= MIN_UPPER_BODY_VISIBILITY
+            and getattr(right_shoulder, "visibility", 1.0) >= MIN_UPPER_BODY_VISIBILITY
+        )
 
         low_position = (
             nose.y >= LOW_HEAD_Y
             or hip_y >= LOW_HIP_Y
             or shoulder_y >= LOW_SHOULDER_Y
             or body_center_y >= BODY_CENTER_LOW_Y
-        )
-        floor_position = (
-            nose.y >= FLOOR_HEAD_Y
-            or shoulder_y >= FLOOR_SHOULDER_Y
-            or hip_y >= FLOOR_HIP_Y
-            or body_center_y >= FLOOR_BODY_CENTER_Y
-        )
-        lying_on_floor = floor_position and (
-            horizontal
-            or upper_body_horizontal
-            or torso_angle >= STRONG_HORIZONTAL_ANGLE_DEGREES
         )
 
         self.center_history.append((now, body_center_y))
@@ -230,9 +226,8 @@ class FallDetector:
             "hip_y": round(hip_y, 3),
             "horizontal": horizontal,
             "upper_body_horizontal": upper_body_horizontal,
+            "head_shoulders_visible": head_shoulders_visible,
             "low_position": low_position,
-            "floor_position": floor_position,
-            "lying_on_floor": lying_on_floor,
             "sudden_drop": sudden_drop,
             "rapid_drop": sudden_drop,
         }
@@ -243,10 +238,10 @@ class FallDetector:
             score += 0.4
         if self.last_metrics["upper_body_horizontal"]:
             score += 0.4
+        if self.last_metrics["head_shoulders_visible"]:
+            score += 0.2
         if self.last_metrics["low_position"]:
             score += 0.35
-        if self.last_metrics["lying_on_floor"]:
-            score += 0.3
         if self.last_metrics["sudden_drop"]:
             score += 0.25
         if self.status == "FALL_CONFIRMED":
@@ -265,9 +260,8 @@ class FallDetector:
             "hip_y": 0.0,
             "horizontal": False,
             "upper_body_horizontal": False,
+            "head_shoulders_visible": False,
             "low_position": False,
-            "floor_position": False,
-            "lying_on_floor": False,
             "sudden_drop": False,
             "rapid_drop": False,
         }

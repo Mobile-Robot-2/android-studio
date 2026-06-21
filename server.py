@@ -133,6 +133,7 @@ def control_cancel_medication_alarm(robot_id: str = Form("temi-01")) -> dict:
 @app.post("/medication/log")
 def add_medication_log(log: MedicationLogRequest) -> dict:
     entry = medication_store.add_log(log)
+    print(f"Medication log saved: {entry}")
     return {
         "success": True,
         "log": entry,

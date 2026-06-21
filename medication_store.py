@@ -3,7 +3,7 @@ from pathlib import Path
 from threading import Lock
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class MedicationLogRequest(BaseModel):
@@ -12,7 +12,12 @@ class MedicationLogRequest(BaseModel):
     taken_at: str | None = None
     checked_at: str | None = None
     triggered_at: str | None = None
+    time: str | None = None
+    timestamp: str | None = None
     source: str | None = None
+
+    class Config:
+        extra = "allow"
 
 
 class MedicationStore:
@@ -56,4 +61,10 @@ class MedicationStore:
 
     @staticmethod
     def _entry_time(entry: dict[str, Any]) -> str | None:
-        return entry.get("taken_at") or entry.get("checked_at") or entry.get("triggered_at")
+        return (
+            entry.get("time")
+            or entry.get("timestamp")
+            or entry.get("taken_at")
+            or entry.get("checked_at")
+            or entry.get("triggered_at")
+        )
