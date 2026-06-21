@@ -98,18 +98,28 @@ public class MedicationActivity extends AppCompatActivity {
             @Override
             public void onTick(long millisUntilFinished) {
                 int secondsLeft = (int) (millisUntilFinished / 1000);
-                tvTimer.setText(secondsLeft + "초 후 보호자에게 연락합니다.");
+                tvTimer.setText(secondsLeft + "초 안에 복약 확인 버튼을 눌러주세요.");
             }
 
             @Override
             public void onFinish() {
-                // 30초 안에 복약 확인 버튼을 누르지 않음 → 보호자에게 영상통화.
-                // (낙상 감지는 순찰 기능에서만 담당하므로 여기서는 수행하지 않는다.)
-                tvMessage.setText("응답이 없어 보호자에게 영상통화를 겁니다.");
+                tvMessage.setText("복약 확인이 되지 않았습니다.");
                 tvTimer.setText("");
+
+                // 서버(Firebase) 기록만 남김
                 sendMedicationNotConfirmed();
+
+                Log.d(TAG, "복약 미확인 상태 저장 완료");
                 saveMedicationStatus("NO_RESPONSE", alarmHour, alarmMinute);
-                callGuardian();
+
+                // 필요하면 홈베이스 복귀
+                robot.setTrackUserOn(false);
+                robot.goTo("home base");
+                heartbeat.update("RETURNING_TO_BASE", "home base");
+                finish();
+
+
+
             }
         }.start();
 
