@@ -76,24 +76,11 @@ public class MedicationActivity extends AppCompatActivity {
 
             @Override
             public void onFinish() {
-                tvMessage.setText("상태를 확인하고 있습니다.");
+                // 30초 안에 복약 확인 버튼을 누르지 않음 → 보호자에게 영상통화.
+                // (낙상 감지는 순찰 기능에서만 담당하므로 여기서는 수행하지 않는다.)
+                tvMessage.setText("응답이 없어 보호자에게 영상통화를 겁니다.");
                 tvTimer.setText("");
-                // ⭐️ 1. 먼저 시선 추적을 꺼야 수동으로 고개를 숙일 수 있습니다.
-                robot.setTrackUserOn(false);
-
-                // ⭐️ 2. 고개를 숙입니다. (-25도: 바닥 감지용)
-                robot.tiltAngle(-25);
-
-                // ⭐️ 3. 안내 음성 출력
-                robot.speak(TtsRequest.create("어르신 괜찮으신가요?", false));
-
-                // ⭐️ 4. (중요) 고개가 내려갈 최소한의 시간을 준 뒤 화면을 전환합니다.
-                new android.os.Handler().postDelayed(() -> {
-                    Intent intent = new Intent(MedicationActivity.this, MainActivity.class);
-                    intent.putExtra("fall_mode", true);
-                    startActivity(intent);
-                    finish();
-                }, 1000); // 1초 대기 후 전환
+                callGuardian();
             }
         }.start();
 
@@ -111,6 +98,35 @@ public class MedicationActivity extends AppCompatActivity {
             heartbeat.update("RETURNING_TO_BASE", "home base");
             finish();
         });
+    }
+
+    /** 복약 무응답 시 보호자에게 영상통화를 연결한다. (낙상 감지 없음) */
+    private void callGuardian() {
+        robot.setTrackUserOn(false);
+        robot.speak(TtsRequest.create("복약 확인이 되지 않아 보호자에게 영상통화를 연결합니다.", false));
+
+        UserInfo adminInfo = robot.getAdminInfo();
+        if (adminInfo != null) {
+            isCallLaunched = true;
+            if (heartbeat != null) {
+                heartbeat.update("CALLING_GUARDIAN", "거실");
+            }
+            robot.startTelepresence(
+                    adminInfo.getName(),
+                    adminInfo.getUserId(),
+                    com.robotemi.sdk.constants.Platform.MOBILE
+            );
+        } else {
+            // 보호자 정보가 없으면 무한 대기하지 않고 복귀
+            Log.e("MedicationActivity", "보호자 정보 없음 - 복귀");
+            robot.speak(TtsRequest.create("연결할 보호자 연락처가 없습니다. 복귀합니다.", false));
+            robot.setTrackUserOn(false);
+            robot.goTo("home base");
+            if (heartbeat != null) {
+                heartbeat.update("RETURNING_TO_BASE", "home base");
+            }
+            finish();
+        }
     }
 
     @Override

@@ -262,12 +262,43 @@ public class PatrolActivity extends AppCompatActivity
     }
 
     private void returnToBaseAndFinish() {
+        // 다음 순찰에 이전 낙상 상태가 남아 도착 즉시 통화되는 것을 막기 위해
+        // 로컬 플래그와 서버의 전역 FallDetector 상태를 모두 초기화한다.
+        observing = false;
+        emergencyTriggered.set(false);
+        resetFallDetectorOnServer();
+
         if (robot != null) {
             robot.setTrackUserOn(false);
             robot.tiltAngle(HEAD_RESET_ANGLE);
             robot.goTo(HOME_BASE);
         }
         finish();
+    }
+
+    /**
+     * 서버의 전역 FallDetector 상태를 NORMAL 로 초기화한다.
+     * 낙상이 한 번 확정되면 서버에 FALL_CONFIRMED 상태가 남아(프레임 전송이 멈추므로
+     * 스스로 회복되지 않음) 다음 순찰 도착 즉시 fall_detected=true 가 반환되는 버그를 막는다.
+     */
+    private void resetFallDetectorOnServer() {
+        RequestBody body = RequestBody.create(MediaType.parse("text/plain"), "");
+        Request request = new Request.Builder()
+                .url(SERVER_URL + "/reset_fall")
+                .post(body)
+                .build();
+        client.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(@NonNull Call call, @NonNull IOException e) {
+                Log.e(TAG, "낙상 상태 초기화 실패: " + e.getMessage());
+            }
+
+            @Override
+            public void onResponse(@NonNull Call call, @NonNull Response response) {
+                Log.d(TAG, "서버 낙상 상태 초기화 완료");
+                response.close();
+            }
+        });
     }
 
     // ───────────────── 낙상 처리 ─────────────────────────────────────────
