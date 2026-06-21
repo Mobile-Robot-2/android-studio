@@ -196,7 +196,7 @@ public class MainActivity extends AppCompatActivity implements
         currentCharging = isCharging;
 
         // 예시: 20% 이하로 떨어졌고 충전 중이 아닐 때
-        if (batteryLevel <= 34 && !isCharging) {
+        if (batteryLevel <= 20 && !isCharging) {
 
             // 배터리 복귀 화면으로 전환
             Intent intent = new Intent(this, BatteryReturnActivity.class);

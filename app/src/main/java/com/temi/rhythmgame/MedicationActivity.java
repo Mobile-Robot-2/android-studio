@@ -78,22 +78,22 @@ public class MedicationActivity extends AppCompatActivity {
             public void onFinish() {
                 tvMessage.setText("상태를 확인하고 있습니다.");
                 tvTimer.setText("");
+                // ⭐️ 1. 먼저 시선 추적을 꺼야 수동으로 고개를 숙일 수 있습니다.
+                robot.setTrackUserOn(false);
+
+                // ⭐️ 2. 고개를 숙입니다. (-25도: 바닥 감지용)
+                robot.tiltAngle(-25);
+
+                // ⭐️ 3. 안내 음성 출력
                 robot.speak(TtsRequest.create("어르신 괜찮으신가요?", false));
 
-                Intent intent =
-                        new Intent(
-                                MedicationActivity.this,
-                                MainActivity.class
-                        );
-
-                intent.putExtra("fall_mode", true);
-
-                startActivity(intent);
-                finish();
-
-
-
-
+                // ⭐️ 4. (중요) 고개가 내려갈 최소한의 시간을 준 뒤 화면을 전환합니다.
+                new android.os.Handler().postDelayed(() -> {
+                    Intent intent = new Intent(MedicationActivity.this, MainActivity.class);
+                    intent.putExtra("fall_mode", true);
+                    startActivity(intent);
+                    finish();
+                }, 1000); // 1초 대기 후 전환
             }
         }.start();
 

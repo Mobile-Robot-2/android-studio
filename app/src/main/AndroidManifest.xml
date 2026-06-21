@@ -26,6 +26,9 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <meta-data
+                android:name="com.robotemi.sdk.metadata.SKILL"
+                android:value="true" />
         </activity>
 
         <activity
@@ -70,6 +73,17 @@
             android:name=".PoseAnalysisActivity"
             android:exported="false"
             android:screenOrientation="landscape" />
+
+        <activity
+            android:name=".PatrolActivity"
+            android:exported="false"
+            android:showOnLockScreen="true"
+            android:turnScreenOn="true"
+            android:screenOrientation="landscape" />
+
+        <receiver
+            android:name=".PatrolReceiver"
+            android:exported="false" />
     </application>
 
 </manifest>
