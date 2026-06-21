@@ -116,6 +116,8 @@ public class MedicationActivity extends BaseActivity {
                 robot.setTrackUserOn(false);
                 robot.goTo("home base");
                 heartbeat.update("RETURNING_TO_BASE", "home base");
+                CareTaskCoordinator.clearBusy(MedicationActivity.this);
+                CareTaskCoordinator.runPendingPatrolIfAny(MedicationActivity.this);
                 finish();
 
 
