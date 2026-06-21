@@ -28,7 +28,7 @@
             </intent-filter>
             <meta-data
                 android:name="com.robotemi.sdk.metadata.SKILL"
-                android:value="true" />
+                android:value="@string/app_name" />
             <!-- 이 화면이 떠있을 때 "헤이 테미" 음성을 테미 클라우드 NLU 대신
                  우리 앱의 AsrListener(onAsrResult)로 라우팅한다. -->
             <meta-data
