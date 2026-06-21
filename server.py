@@ -227,7 +227,19 @@ async def analyze_frame(
     image: UploadFile = File(...),
     elapsed_time: float | None = Form(None),
 ) -> dict:
-    return await _analyze_upload(image, elapsed_time)
+    result = await _analyze_upload(image, elapsed_time)
+
+    firebase_data = {
+        "timestamp": time.time(),
+        "counts": result["counts"],
+        "elapsed_time": result["elapsed_time"],
+        "game_clear": result["game_clear"],
+        "fall_detected": result["fall_detected"]
+    }
+    db.reference("game/current").set(firebase_data)
+    db.reference("game/history").push(firebase_data)
+
+    return result
 
 
 async def _analyze_upload(upload: UploadFile, elapsed_time: float | None = None) -> dict:
