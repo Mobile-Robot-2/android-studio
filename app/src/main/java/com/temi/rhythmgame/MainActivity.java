@@ -612,6 +612,9 @@ public class MainActivity extends AppCompatActivity implements
             case "START_RHYTHM_GAME":
                 startGameFromCommand();
                 break;
+            case "START_PATROL":
+                startPatrolFromCommand();
+                break;
             case "STOP_GAME":
                 stopGameFromCommand();
                 break;
@@ -675,6 +678,18 @@ public class MainActivity extends AppCompatActivity implements
             gameRunning = true;
             gameStartedAtMillis = System.currentTimeMillis();
         }
+        completeActiveCommand(null);
+    }
+
+    private void startPatrolFromCommand() {
+        stopLocalWork();
+        robotState = "PATROLLING";
+        commandStatus = "RUNNING";
+        updateStatusText();
+        postRobotStatus();
+
+        Intent intent = new Intent(MainActivity.this, PatrolActivity.class);
+        startActivity(intent);
         completeActiveCommand(null);
     }
 

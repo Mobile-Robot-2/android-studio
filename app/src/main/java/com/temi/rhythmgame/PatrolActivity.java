@@ -86,6 +86,7 @@ public class PatrolActivity extends AppCompatActivity
     private Robot robot;
     private PreviewView previewView;
     private TextView textStatus;
+    private RobotStatusHeartbeat statusHeartbeat;
     private ExecutorService cameraExecutor;
     private final OkHttpClient client = new OkHttpClient();
     private final Handler handler = new Handler(Looper.getMainLooper());
@@ -119,6 +120,8 @@ public class PatrolActivity extends AppCompatActivity
 
         previewView = findViewById(R.id.previewView);
         textStatus = findViewById(R.id.textStatus);
+        statusHeartbeat = new RobotStatusHeartbeat("PATROLLING", "patrol");
+        statusHeartbeat.start();
         cameraExecutor = Executors.newSingleThreadExecutor();
 
         robot = Robot.getInstance();
@@ -161,6 +164,9 @@ public class PatrolActivity extends AppCompatActivity
             robot.removeOnGoToLocationStatusChangedListener(this);
             robot.setTrackUserOn(false);
         }
+        if (statusHeartbeat != null) {
+            statusHeartbeat.stop();
+        }
         if (cameraExecutor != null) {
             cameraExecutor.shutdown();
         }
@@ -179,6 +185,7 @@ public class PatrolActivity extends AppCompatActivity
         }
 
         currentTarget = PATROL_LOCATIONS[locationIndex];
+        updatePatrolStatus("PATROL_MOVING", currentTarget);
         setStatus(currentTarget + "(으)로 이동 중...");
         Log.d(TAG, "이동 시작: " + currentTarget);
 
@@ -209,6 +216,7 @@ public class PatrolActivity extends AppCompatActivity
 
     /** 지점 도착: 고개를 최저로 내리고 잠시 뒤 낙상 감시를 시작한다. */
     private void onArrived() {
+        updatePatrolStatus("PATROL_CHECKING", currentTarget);
         setStatus(currentTarget + " 도착 - 상태 확인 중...");
 
         // 시선 추적을 꺼야 수동으로 고개를 숙일 수 있음
@@ -225,6 +233,7 @@ public class PatrolActivity extends AppCompatActivity
     private void startObservation() {
         emergencyTriggered.set(false);
         observing = true;
+        updatePatrolStatus("PATROL_OBSERVING", currentTarget);
         setStatus(currentTarget + " 낙상 감시 중...");
         Log.d(TAG, "낙상 감시 시작: " + currentTarget);
 
@@ -238,6 +247,7 @@ public class PatrolActivity extends AppCompatActivity
             return; // 이미 낙상 처리로 종료됨
         }
         observing = false;
+        updatePatrolStatus("PATROL_CLEAR", currentTarget);
         Log.d(TAG, "이상 없음: " + currentTarget);
         locationIndex++;
         startNextLeg();
@@ -245,6 +255,7 @@ public class PatrolActivity extends AppCompatActivity
 
     /** 순찰 정상 종료 → 홈베이스 복귀. */
     private void finishPatrol() {
+        updatePatrolStatus("RETURNING_TO_BASE", HOME_BASE);
         setStatus("순찰 완료. 홈베이스로 복귀합니다.");
         robot.speak(TtsRequest.create("순찰을 마치고 복귀합니다.", false));
         returnToBaseAndFinish();
@@ -265,6 +276,7 @@ public class PatrolActivity extends AppCompatActivity
     private void handleFallDetected() {
         observing = false;
         handler.removeCallbacks(endObservationRunnable);
+        updatePatrolStatus("FALL_DETECTED", currentTarget);
         setStatus("낙상 감지! 보호자에게 연락합니다.");
         Toast.makeText(this, "낙상 감지!", Toast.LENGTH_SHORT).show();
         callGuardian();
@@ -290,6 +302,12 @@ public class PatrolActivity extends AppCompatActivity
     }
 
     // ───────────────── 카메라 / 낙상 프레임 전송 ──────────────────────────
+
+    private void updatePatrolStatus(String state, String location) {
+        if (statusHeartbeat != null) {
+            statusHeartbeat.update(state, location != null ? location : "patrol");
+        }
+    }
 
     private void startCamera() {
         ListenableFuture<ProcessCameraProvider> cameraProviderFuture =
