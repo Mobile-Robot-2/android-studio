@@ -18,6 +18,8 @@ public class MedicationHelper {
 
         Intent intent =
                 new Intent(context, MedicationAlarmReceiver.class);
+        intent.putExtra("ALARM_HOUR", hour);
+        intent.putExtra("ALARM_MINUTE", minute);
 
         PendingIntent pendingIntent =
                 PendingIntent.getBroadcast(
