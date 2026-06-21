@@ -35,7 +35,7 @@ import java.util.Locale;
  * 초기 10초: "결과를 계산하고 있어요!" + ProgressBar (로딩 화면)
  * 10초 후  : 점수 + LLM 피드백 자리 + "다시 하기" 버튼 표시
  */
-public class ResultActivity extends AppCompatActivity {
+public class ResultActivity extends BaseActivity {
 
     private static final String TAG = "ResultActivity";
     private CountDownTimer loadingTimer;
@@ -84,6 +84,7 @@ public class ResultActivity extends AppCompatActivity {
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
                 | WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON);
         setContentView(R.layout.activity_result);
+        CareTaskCoordinator.setBusy(this, "RHYTHM_RESULT");
 
         // 배경 애니메이션
         ConstraintLayout rootLayout = findViewById(R.id.rootLayout);
@@ -140,6 +141,8 @@ public class ResultActivity extends AppCompatActivity {
 
                 String ttsMessage = "최종 점수는 " + finalCalculatedScore + "점입니다. 수고하셨습니다!";
                 robot.speak(TtsRequest.create(ttsMessage, false));
+                CareTaskCoordinator.clearBusy(ResultActivity.this);
+                CareTaskCoordinator.runPendingPatrolIfAny(ResultActivity.this);
 
                 // robot.goTo("home base");
             }
@@ -316,6 +319,7 @@ public class ResultActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        CareTaskCoordinator.clearBusy(this);
         if (loadingTimer != null) loadingTimer.cancel();
         if (robot != null) robot.cancelAllTtsRequests();
         if (heartbeat != null) heartbeat.stop();

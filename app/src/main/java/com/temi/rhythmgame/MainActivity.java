@@ -54,7 +54,7 @@ import java.util.concurrent.Executors;
 
 import com.robotemi.sdk.UserInfo;
 
-public class MainActivity extends AppCompatActivity implements
+public class MainActivity extends BaseActivity implements
         OnBatteryStatusChangedListener,
         OnGoToLocationStatusChangedListener {
 
@@ -259,6 +259,7 @@ public class MainActivity extends AppCompatActivity implements
         videoView.setOnPreparedListener(mp -> {
             videoView.start();
             gameRunning = true;
+            CareTaskCoordinator.setBusy(this, "RHYTHM_GAME");
             robotState = "PLAYING_GAME";
             gameStartedAtMillis = System.currentTimeMillis();
             gameStartTimeStr = sdf.format(new Date());
@@ -268,6 +269,7 @@ public class MainActivity extends AppCompatActivity implements
 
         videoView.setOnCompletionListener(mp -> {
             gameRunning = false;
+            CareTaskCoordinator.clearBusy(this);
             gameEndTimeStr = sdf.format(new Date());
             Log.d(TAG, "영상 종료 시간: " + gameEndTimeStr);
             goToResult();
@@ -670,12 +672,14 @@ public class MainActivity extends AppCompatActivity implements
     private void startGameFromCommand() {
         robotState = "PLAYING_GAME";
         commandStatus = "RUNNING";
+        CareTaskCoordinator.setBusy(this, "RHYTHM_GAME");
         resetGameState();
         if (!videoConfigured) {
             setupVideo();
         } else if (videoView != null && !videoView.isPlaying()) {
             videoView.start();
             gameRunning = true;
+            CareTaskCoordinator.setBusy(this, "RHYTHM_GAME");
             gameStartedAtMillis = System.currentTimeMillis();
         }
         completeActiveCommand(null);
@@ -688,8 +692,7 @@ public class MainActivity extends AppCompatActivity implements
         updateStatusText();
         postRobotStatus();
 
-        Intent intent = new Intent(MainActivity.this, PatrolActivity.class);
-        startActivity(intent);
+        CareTaskCoordinator.requestPatrol(this);
         completeActiveCommand(null);
     }
 
@@ -697,6 +700,8 @@ public class MainActivity extends AppCompatActivity implements
         stopLocalWork();
         robotState = "READY_FOR_GAME";
         completeActiveCommand(null);
+        CareTaskCoordinator.clearBusy(this);
+        CareTaskCoordinator.runPendingPatrolIfAny(this);
     }
 
     private void stopLocalWork() {

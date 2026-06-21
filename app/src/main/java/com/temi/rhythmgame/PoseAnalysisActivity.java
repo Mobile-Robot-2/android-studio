@@ -43,7 +43,7 @@ import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
 
-public class PoseAnalysisActivity extends AppCompatActivity {
+public class PoseAnalysisActivity extends BaseActivity {
 
     private static final int CAMERA_PERMISSION_REQUEST_CODE = 1001;
 

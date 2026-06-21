@@ -19,7 +19,27 @@ import android.content.Intent;
 import java.util.Collections;
 import java.util.List;
 
-public class MedicationActivity extends AppCompatActivity {
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
+
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
+
+public class MedicationActivity extends BaseActivity {
+
+    private static final String TAG = "MedicationActivity";
+    private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
+    private final OkHttpClient okHttpClient = new OkHttpClient();
 
     private Robot robot; // 주석 해제 완료
     private CountDownTimer countDownTimer;
@@ -29,6 +49,8 @@ public class MedicationActivity extends AppCompatActivity {
     private RobotStatusHeartbeat heartbeat;
 
     private boolean isCallLaunched = false;
+    private int alarmHour = -1;
+    private int alarmMinute = -1;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -52,39 +74,57 @@ public class MedicationActivity extends AppCompatActivity {
             animationDrawable.start();
         }
 
+        alarmHour = getIntent().getIntExtra("ALARM_HOUR", -1);
+        alarmMinute = getIntent().getIntExtra("ALARM_MINUTE", -1);
+        CareTaskCoordinator.setBusy(this, "MEDICATION");
+
         robot = Robot.getInstance();
-        heartbeat = new RobotStatusHeartbeat("MOVING_TO_USER", "거실");
+        heartbeat = new RobotStatusHeartbeat("MOVING_TO_USER", "주방");
 
         tvMessage = findViewById(R.id.tvMessage);
         tvTimer = findViewById(R.id.tvTimer);
         btnMedicationDone = findViewById(R.id.btnMedicationDone);
 
         // 복약 알람 시 어르신이 계신 곳으로 자율 주행 이동
-        robot.goTo("거실");
+        robot.goTo("주방");
         robot.setTrackUserOn(true);
 
         tvMessage.setText("복약하실 시간입니다.\n약을 드셨다면 복약 완료 버튼을 눌러주세요.");
         robot.speak(TtsRequest.create("복약하실 시간입니다. 약을 드셨다면 복약 완료 버튼을 눌러주세요.", false));
+        sendMedicationAlarmTriggered();
 
         countDownTimer = new CountDownTimer(30000, 1000) {
 
             @Override
             public void onTick(long millisUntilFinished) {
                 int secondsLeft = (int) (millisUntilFinished / 1000);
-                tvTimer.setText(secondsLeft + "초 후 보호자에게 연락합니다.");
+                tvTimer.setText(secondsLeft + "초 안에 복약 확인 버튼을 눌러주세요.");
             }
 
             @Override
             public void onFinish() {
-                // 30초 안에 복약 확인 버튼을 누르지 않음 → 보호자에게 영상통화.
-                // (낙상 감지는 순찰 기능에서만 담당하므로 여기서는 수행하지 않는다.)
-                tvMessage.setText("응답이 없어 보호자에게 영상통화를 겁니다.");
+                tvMessage.setText("복약 확인이 되지 않았습니다.");
                 tvTimer.setText("");
-                callGuardian();
+
+                // 서버(Firebase) 기록만 남김
+                sendMedicationNotConfirmed();
+
+                Log.d(TAG, "복약 미확인 상태 저장 완료");
+                saveMedicationStatus("NO_RESPONSE", alarmHour, alarmMinute);
+
+                // 필요하면 홈베이스 복귀
+                robot.setTrackUserOn(false);
+                robot.goTo("home base");
+                heartbeat.update("RETURNING_TO_BASE", "home base");
+                finish();
+
+
+
             }
         }.start();
 
         btnMedicationDone.setOnClickListener(v -> {
+            Log.d("MEDICATION", "복약 확인 버튼 클릭됨");
             if (countDownTimer != null) {
                 countDownTimer.cancel();
             }
@@ -92,12 +132,79 @@ public class MedicationActivity extends AppCompatActivity {
             tvMessage.setText("복약이 확인되었습니다.");
             tvTimer.setText("알람 종료");
             robot.speak(TtsRequest.create("복약이 확인되었습니다. 홈 베이스로 복귀합니다.", false));
+            sendMedicationTaken();
+            saveMedicationStatus("TAKEN", alarmHour, alarmMinute);
 
             robot.setTrackUserOn(false);
             robot.goTo("home base");
             heartbeat.update("RETURNING_TO_BASE", "home base");
+            CareTaskCoordinator.clearBusy(this);
+            CareTaskCoordinator.runPendingPatrolIfAny(this);
             finish();
         });
+    }
+
+    private String getNowString() {
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.KOREA);
+        sdf.setTimeZone(java.util.TimeZone.getTimeZone("Asia/Seoul"));
+        return sdf.format(new Date());
+    }
+
+    private void sendMedicationAlarmTriggered() {
+        postMedicationLog("ALARM_TRIGGERED", "triggered_at", getNowString(), "alarm");
+    }
+
+    private void sendMedicationTaken() {
+        postMedicationLog("TAKEN", "taken_at", getNowString(), "button");
+    }
+
+    private void sendMedicationNotConfirmed() {
+        postMedicationLog("NOT_CONFIRMED", "checked_at", getNowString(), "timeout");
+    }
+
+    // "헤이 테미, 약 먹었나?" 질문에 답할 수 있도록 오늘 복약 상태와 알람 시각을 로컬에 저장
+    private void saveMedicationStatus(String status, int hour, int minute) {
+        String today = new SimpleDateFormat("yyyy-MM-dd", Locale.KOREA).format(new Date());
+        String timeStr = (hour >= 0 && minute >= 0)
+                ? String.format(Locale.KOREA, "%02d:%02d", hour, minute)
+                : "";
+        getSharedPreferences("medication_prefs", MODE_PRIVATE).edit()
+                .putString("status", status)
+                .putString("date", today)
+                .putString("alarm_time", timeStr)
+                .apply();
+    }
+
+    private void postMedicationLog(String status, String timeKey, String timeValue, String source) {
+        try {
+            JSONObject json = new JSONObject();
+            json.put("robot_id", ServerConfig.ROBOT_ID);
+            json.put("status", status);
+            json.put(timeKey, timeValue);
+            json.put("source", source);
+
+            RequestBody body = RequestBody.create(JSON, json.toString());
+            Request request = new Request.Builder()
+                    .url(ServerConfig.BASE_URL + "/medication/log")
+                    .post(body)
+                    .build();
+
+            okHttpClient.newCall(request).enqueue(new Callback() {
+                @Override
+                public void onFailure(Call call, IOException e) {
+                    Log.e(TAG, "Medication log send failed: " + status, e);
+                }
+
+                @Override
+                public void onResponse(Call call, Response response) throws IOException {
+                    String responseBody = response.body() != null ? response.body().string() : "";
+                    Log.d(TAG, "Medication log response: " + response.code() + " / " + responseBody);
+                    response.close();
+                }
+            });
+        } catch (JSONException e) {
+            Log.e(TAG, "Medication log JSON failed: " + status, e);
+        }
     }
 
     /** 복약 무응답 시 보호자에게 영상통화를 연결한다. (낙상 감지 없음) */
@@ -125,6 +232,8 @@ public class MedicationActivity extends AppCompatActivity {
             if (heartbeat != null) {
                 heartbeat.update("RETURNING_TO_BASE", "home base");
             }
+            CareTaskCoordinator.clearBusy(this);
+            CareTaskCoordinator.runPendingPatrolIfAny(this);
             finish();
         }
     }
@@ -158,6 +267,8 @@ public class MedicationActivity extends AppCompatActivity {
 
             // 다음 알람을 위해 플래그 원상복구
             isCallLaunched = false;
+            CareTaskCoordinator.clearBusy(this);
+            CareTaskCoordinator.runPendingPatrolIfAny(this);
 
             // 시선 추적 끄고 진짜 충전소로 복귀
             if (robot != null) {

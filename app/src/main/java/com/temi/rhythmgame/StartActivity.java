@@ -26,7 +26,7 @@ import java.util.Calendar;
  * "운동 알람 맞추기" 버튼을 클릭하면 예약 다이얼로그가 뜹니다.
  * "알람 취소" 버튼을 클릭하면 예약된 모든 알람을 해제합니다.
  */
-public class StartActivity extends AppCompatActivity {
+public class StartActivity extends BaseActivity {
 
     private static final String TAG = "StartActivity";
     private RobotApiClient robotApiClient;
@@ -334,4 +334,5 @@ public class StartActivity extends AppCompatActivity {
 
         timePickerDialog.show();
     }
+
 }

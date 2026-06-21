@@ -66,7 +66,7 @@ import okhttp3.Response;
  * 어느 지점에서든 낙상이 감지되면 그 자리에서 보호자에게 영상통화를 걸고,
  * 통화가 끝나면(onResume) home base 로 복귀하며 이번 순찰을 종료한다.
  */
-public class PatrolActivity extends AppCompatActivity
+public class PatrolActivity extends BaseActivity
         implements OnGoToLocationStatusChangedListener {
 
     private static final String TAG = "PatrolActivity";
@@ -218,6 +218,14 @@ public class PatrolActivity extends AppCompatActivity
     private void onArrived() {
         updatePatrolStatus("PATROL_CHECKING", currentTarget);
         setStatus(currentTarget + " 도착 - 상태 확인 중...");
+
+        // 관찰 시작 전 서버의 전역 FallDetector 를 초기화한다.
+        // (직전 순찰이 비정상 종료됐거나 종료 시 reset 이 실패해 stale 한
+        //  FALL_CONFIRMED 상태가 남아, 사람이 없는데도 첫 프레임에서 즉시
+        //  fall_detected=true 가 반환되는 것을 막는 안전망.)
+        // HEAD_SETTLE_MS(1.5초) 뒤 관찰이 시작되므로 비동기 reset 이 적용될 시간이 확보된다.
+        emergencyTriggered.set(false);
+        resetFallDetectorOnServer();
 
         // 시선 추적을 꺼야 수동으로 고개를 숙일 수 있음
         robot.setTrackUserOn(false);

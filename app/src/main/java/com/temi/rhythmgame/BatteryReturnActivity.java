@@ -11,7 +11,7 @@ import androidx.constraintlayout.widget.ConstraintLayout;
 import com.robotemi.sdk.Robot;
 import com.robotemi.sdk.TtsRequest;
 
-public class BatteryReturnActivity extends AppCompatActivity implements Robot.TtsListener {
+public class BatteryReturnActivity extends BaseActivity implements Robot.TtsListener {
 
     private static final String TAG = "BatteryReturnActivity";
     private Robot robot;
