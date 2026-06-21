@@ -19,12 +19,13 @@ DROP_WINDOW_SECONDS = 1.0
 MIN_CENTER_DROP = 0.12
 HORIZONTAL_ANGLE_DEGREES = 50.0
 STRONG_HORIZONTAL_ANGLE_DEGREES = 75.0
-UPPER_BODY_HORIZONTAL_ANGLE_DEGREES = 48.0
-LOW_HEAD_Y = 0.38
-LOW_HIP_Y = 0.48
-LOW_SHOULDER_Y = 0.36
-BODY_CENTER_LOW_Y = 0.42
-MIN_UPPER_BODY_VISIBILITY = 0.45
+UPPER_BODY_HORIZONTAL_ANGLE_DEGREES = 60.0
+LOW_HEAD_Y = 0.36
+LOW_HIP_Y = 0.55
+LOW_SHOULDER_Y = 0.42
+BODY_CENTER_LOW_Y = 0.50
+MIN_UPPER_BODY_VISIBILITY = 0.60
+MIN_RELIABLE_UPPER_BODY_VISIBILITY = 0.70
 
 
 class FallDetector:
@@ -55,13 +56,17 @@ class FallDetector:
             metrics["torso_angle"] >= STRONG_HORIZONTAL_ANGLE_DEGREES
         )
         fallen_pose = (
-            metrics["head_shoulders_visible"]
+            metrics["reliable_upper_body_visible"]
             and metrics["horizontal"]
-            and (metrics["low_position"] or strong_horizontal)
+            and (
+                metrics["low_position"]
+                or (strong_horizontal and metrics["upper_body_low"])
+            )
         )
         obvious_lying_pose = (
-            metrics["head_shoulders_visible"]
+            metrics["reliable_upper_body_visible"]
             and metrics["upper_body_horizontal"]
+            and metrics["upper_body_low"]
         )
         fall_evidence = fallen_pose or (
             metrics["head_shoulders_visible"]
@@ -197,12 +202,20 @@ class FallDetector:
             and getattr(left_shoulder, "visibility", 1.0) >= MIN_UPPER_BODY_VISIBILITY
             and getattr(right_shoulder, "visibility", 1.0) >= MIN_UPPER_BODY_VISIBILITY
         )
+        reliable_upper_body_visible = (
+            getattr(nose, "visibility", 1.0) >= MIN_RELIABLE_UPPER_BODY_VISIBILITY
+            and getattr(left_shoulder, "visibility", 1.0) >= MIN_RELIABLE_UPPER_BODY_VISIBILITY
+            and getattr(right_shoulder, "visibility", 1.0) >= MIN_RELIABLE_UPPER_BODY_VISIBILITY
+        )
 
         low_position = (
-            nose.y >= LOW_HEAD_Y
-            or hip_y >= LOW_HIP_Y
+            hip_y >= LOW_HIP_Y
             or shoulder_y >= LOW_SHOULDER_Y
             or body_center_y >= BODY_CENTER_LOW_Y
+        )
+        upper_body_low = (
+            nose.y >= LOW_HEAD_Y
+            and shoulder_y >= LOW_SHOULDER_Y
         )
 
         self.center_history.append((now, body_center_y))
@@ -227,6 +240,8 @@ class FallDetector:
             "horizontal": horizontal,
             "upper_body_horizontal": upper_body_horizontal,
             "head_shoulders_visible": head_shoulders_visible,
+            "reliable_upper_body_visible": reliable_upper_body_visible,
+            "upper_body_low": upper_body_low,
             "low_position": low_position,
             "sudden_drop": sudden_drop,
             "rapid_drop": sudden_drop,
@@ -240,6 +255,10 @@ class FallDetector:
             score += 0.4
         if self.last_metrics["head_shoulders_visible"]:
             score += 0.2
+        if self.last_metrics["reliable_upper_body_visible"]:
+            score += 0.15
+        if self.last_metrics["upper_body_low"]:
+            score += 0.15
         if self.last_metrics["low_position"]:
             score += 0.35
         if self.last_metrics["sudden_drop"]:
@@ -261,6 +280,8 @@ class FallDetector:
             "horizontal": False,
             "upper_body_horizontal": False,
             "head_shoulders_visible": False,
+            "reliable_upper_body_visible": False,
+            "upper_body_low": False,
             "low_position": False,
             "sudden_drop": False,
             "rapid_drop": False,
