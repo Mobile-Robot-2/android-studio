@@ -63,6 +63,7 @@ public class PrepareActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_prepare);
+        CareTaskCoordinator.setBusy(this, "RHYTHM_GAME");
 
         // ⭐️ 배경 애니메이션 실행 코드
         ConstraintLayout rootLayout = findViewById(R.id.rootLayout);

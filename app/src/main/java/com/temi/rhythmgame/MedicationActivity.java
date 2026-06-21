@@ -76,6 +76,7 @@ public class MedicationActivity extends AppCompatActivity {
 
         alarmHour = getIntent().getIntExtra("ALARM_HOUR", -1);
         alarmMinute = getIntent().getIntExtra("ALARM_MINUTE", -1);
+        CareTaskCoordinator.setBusy(this, "MEDICATION");
 
         robot = Robot.getInstance();
         heartbeat = new RobotStatusHeartbeat("MOVING_TO_USER", "주방");
@@ -127,6 +128,8 @@ public class MedicationActivity extends AppCompatActivity {
             robot.setTrackUserOn(false);
             robot.goTo("home base");
             heartbeat.update("RETURNING_TO_BASE", "home base");
+            CareTaskCoordinator.clearBusy(this);
+            CareTaskCoordinator.runPendingPatrolIfAny(this);
             finish();
         });
     }
@@ -219,6 +222,8 @@ public class MedicationActivity extends AppCompatActivity {
             if (heartbeat != null) {
                 heartbeat.update("RETURNING_TO_BASE", "home base");
             }
+            CareTaskCoordinator.clearBusy(this);
+            CareTaskCoordinator.runPendingPatrolIfAny(this);
             finish();
         }
     }
@@ -252,6 +257,8 @@ public class MedicationActivity extends AppCompatActivity {
 
             // 다음 알람을 위해 플래그 원상복구
             isCallLaunched = false;
+            CareTaskCoordinator.clearBusy(this);
+            CareTaskCoordinator.runPendingPatrolIfAny(this);
 
             // 시선 추적 끄고 진짜 충전소로 복귀
             if (robot != null) {
