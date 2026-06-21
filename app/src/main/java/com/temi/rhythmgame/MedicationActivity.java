@@ -53,14 +53,14 @@ public class MedicationActivity extends AppCompatActivity {
         }
 
         robot = Robot.getInstance();
-        heartbeat = new RobotStatusHeartbeat("MOVING_TO_USER", "거실");
+        heartbeat = new RobotStatusHeartbeat("MOVING_TO_USER", "주방");
 
         tvMessage = findViewById(R.id.tvMessage);
         tvTimer = findViewById(R.id.tvTimer);
         btnMedicationDone = findViewById(R.id.btnMedicationDone);
 
         // 복약 알람 시 어르신이 계신 곳으로 자율 주행 이동
-        robot.goTo("거실");
+        robot.goTo("주방");
         robot.setTrackUserOn(true);
 
         tvMessage.setText("복약하실 시간입니다.\n약을 드셨다면 복약 완료 버튼을 눌러주세요.");
@@ -85,6 +85,7 @@ public class MedicationActivity extends AppCompatActivity {
         }.start();
 
         btnMedicationDone.setOnClickListener(v -> {
+            Log.d("MEDICATION", "복약 확인 버튼 클릭됨");
             if (countDownTimer != null) {
                 countDownTimer.cancel();
             }
