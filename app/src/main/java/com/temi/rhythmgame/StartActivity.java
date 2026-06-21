@@ -3,6 +3,7 @@ package com.temi.rhythmgame;
 import android.app.AlertDialog;
 import android.app.TimePickerDialog;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.graphics.drawable.AnimationDrawable;
 import android.os.Bundle;
 import android.os.Handler;
@@ -15,10 +16,17 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.constraintlayout.widget.ConstraintLayout;
 
+import com.robotemi.sdk.Robot;
+import com.robotemi.sdk.SttLanguage;
+import com.robotemi.sdk.TtsRequest;
+
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.text.SimpleDateFormat;
 import java.util.Calendar;
+import java.util.Date;
+import java.util.Locale;
 
 /**
  * StartActivity - 앱의 시작 화면
@@ -32,6 +40,18 @@ public class StartActivity extends AppCompatActivity {
     private RobotApiClient robotApiClient;
     private Handler serverHandler;
     private boolean controlLaunchInProgress = false;
+
+    private Robot robot;
+
+    // AsrListener 등록 시 SDK가 기본 NLP를 우회하므로, 약 관련 아닌 명령은 startDefaultNlu로 재전달
+    private final Robot.AsrListener asrListener = (asrResult, sttLanguage) -> {
+        if (asrResult == null) return;
+        if (asrResult.contains("약") && (asrResult.contains("먹었") || asrResult.contains("복약"))) {
+            respondToMedicationQuery();
+        } else {
+            robot.startDefaultNlu(asrResult, sttLanguage);
+        }
+    };
 
     private final Runnable statusHeartbeatRunnable = new Runnable() {
         @Override
@@ -65,6 +85,7 @@ public class StartActivity extends AppCompatActivity {
         animationDrawable.setExitFadeDuration(4000);
         animationDrawable.start();
 
+        robot = Robot.getInstance();
         Log.d(TAG, "StartActivity 생성됨");
 
         // 1. 기존 게임 시작 버튼
@@ -166,6 +187,7 @@ public class StartActivity extends AppCompatActivity {
     protected void onStart() {
         super.onStart();
         controlLaunchInProgress = false;
+        if (robot != null) robot.addAsrListener(asrListener);
         serverHandler.post(statusHeartbeatRunnable);
         serverHandler.post(commandWatchRunnable);
     }
@@ -173,8 +195,52 @@ public class StartActivity extends AppCompatActivity {
     @Override
     protected void onStop() {
         super.onStop();
+        if (robot != null) robot.removeAsrListener(asrListener);
         serverHandler.removeCallbacks(statusHeartbeatRunnable);
         serverHandler.removeCallbacks(commandWatchRunnable);
+    }
+
+    private void respondToMedicationQuery() {
+        SharedPreferences prefs = getSharedPreferences("medication_prefs", MODE_PRIVATE);
+        String status = prefs.getString("status", "UNKNOWN");
+        String date = prefs.getString("date", "");
+        String alarmTime = prefs.getString("alarm_time", "");
+        String today = new SimpleDateFormat("yyyy-MM-dd", Locale.KOREA).format(new Date());
+
+        String response;
+        if (!today.equals(date)) {
+            response = "오늘 복약 기록이 아직 없습니다.";
+        } else if ("TAKEN".equals(status)) {
+            response = "네, 오늘 약을 드셨습니다.";
+        } else if ("NO_RESPONSE".equals(status)) {
+            response = formatNoResponseMessage(alarmTime);
+        } else {
+            response = "오늘 복약 기록을 찾을 수 없습니다.";
+        }
+
+        if (robot != null) {
+            robot.speak(TtsRequest.create(response, false));
+        }
+    }
+
+    private String formatNoResponseMessage(String alarmTime) {
+        if (alarmTime == null || alarmTime.isEmpty()) {
+            return "아니요, 복약 확인이 되지 않습니다. 약을 드셔야할 것 같아요!";
+        }
+        try {
+            String[] parts = alarmTime.split(":");
+            int h = Integer.parseInt(parts[0]);
+            int m = Integer.parseInt(parts[1]);
+            String ampm = h < 12 ? "오전" : "오후";
+            int h12 = h % 12;
+            if (h12 == 0) h12 = 12;
+            String timeLabel = m == 0
+                    ? ampm + " " + h12 + "시"
+                    : ampm + " " + h12 + "시 " + m + "분";
+            return timeLabel + "에 드셔야 하는 약을 드시지 않았습니다. 약을 드셔야할 것 같아요!";
+        } catch (Exception e) {
+            return "아니요, 복약 확인이 되지 않습니다. 약을 드셔야할 것 같아요!";
+        }
     }
 
     private void postIdleStatus() {

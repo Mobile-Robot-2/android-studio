@@ -49,6 +49,8 @@ public class MedicationActivity extends AppCompatActivity {
     private RobotStatusHeartbeat heartbeat;
 
     private boolean isCallLaunched = false;
+    private int alarmHour = -1;
+    private int alarmMinute = -1;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -71,6 +73,9 @@ public class MedicationActivity extends AppCompatActivity {
             animationDrawable.setExitFadeDuration(4000);
             animationDrawable.start();
         }
+
+        alarmHour = getIntent().getIntExtra("ALARM_HOUR", -1);
+        alarmMinute = getIntent().getIntExtra("ALARM_MINUTE", -1);
 
         robot = Robot.getInstance();
         heartbeat = new RobotStatusHeartbeat("MOVING_TO_USER", "주방");
@@ -104,12 +109,15 @@ public class MedicationActivity extends AppCompatActivity {
                 sendMedicationNotConfirmed();
 
                 Log.d(TAG, "복약 미확인 상태 저장 완료");
+                saveMedicationStatus("NO_RESPONSE", alarmHour, alarmMinute);
 
                 // 필요하면 홈베이스 복귀
                 robot.setTrackUserOn(false);
                 robot.goTo("home base");
                 heartbeat.update("RETURNING_TO_BASE", "home base");
                 finish();
+
+
 
             }
         }.start();
@@ -124,6 +132,7 @@ public class MedicationActivity extends AppCompatActivity {
             tvTimer.setText("알람 종료");
             robot.speak(TtsRequest.create("복약이 확인되었습니다. 홈 베이스로 복귀합니다.", false));
             sendMedicationTaken();
+            saveMedicationStatus("TAKEN", alarmHour, alarmMinute);
 
             robot.setTrackUserOn(false);
             robot.goTo("home base");
@@ -148,6 +157,19 @@ public class MedicationActivity extends AppCompatActivity {
 
     private void sendMedicationNotConfirmed() {
         postMedicationLog("NOT_CONFIRMED", "checked_at", getNowString(), "timeout");
+    }
+
+    // "헤이 테미, 약 먹었나?" 질문에 답할 수 있도록 오늘 복약 상태와 알람 시각을 로컬에 저장
+    private void saveMedicationStatus(String status, int hour, int minute) {
+        String today = new SimpleDateFormat("yyyy-MM-dd", Locale.KOREA).format(new Date());
+        String timeStr = (hour >= 0 && minute >= 0)
+                ? String.format(Locale.KOREA, "%02d:%02d", hour, minute)
+                : "";
+        getSharedPreferences("medication_prefs", MODE_PRIVATE).edit()
+                .putString("status", status)
+                .putString("date", today)
+                .putString("alarm_time", timeStr)
+                .apply();
     }
 
     private void postMedicationLog(String status, String timeKey, String timeValue, String source) {
