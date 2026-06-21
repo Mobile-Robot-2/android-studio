@@ -66,7 +66,7 @@ import okhttp3.Response;
  * 어느 지점에서든 낙상이 감지되면 그 자리에서 보호자에게 영상통화를 걸고,
  * 통화가 끝나면(onResume) home base 로 복귀하며 이번 순찰을 종료한다.
  */
-public class PatrolActivity extends AppCompatActivity
+public class PatrolActivity extends BaseActivity
         implements OnGoToLocationStatusChangedListener {
 
     private static final String TAG = "PatrolActivity";

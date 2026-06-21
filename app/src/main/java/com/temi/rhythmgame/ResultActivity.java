@@ -35,7 +35,7 @@ import java.util.Locale;
  * 초기 10초: "결과를 계산하고 있어요!" + ProgressBar (로딩 화면)
  * 10초 후  : 점수 + LLM 피드백 자리 + "다시 하기" 버튼 표시
  */
-public class ResultActivity extends AppCompatActivity {
+public class ResultActivity extends BaseActivity {
 
     private static final String TAG = "ResultActivity";
     private CountDownTimer loadingTimer;

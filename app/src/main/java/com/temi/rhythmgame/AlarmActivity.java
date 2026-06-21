@@ -14,7 +14,7 @@ import androidx.constraintlayout.widget.ConstraintLayout;
 import com.robotemi.sdk.Robot;
 import com.robotemi.sdk.TtsRequest;
 
-public class AlarmActivity extends AppCompatActivity {
+public class AlarmActivity extends BaseActivity {
 
     private Robot robot;
     private CountDownTimer countDownTimer;

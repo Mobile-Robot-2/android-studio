@@ -54,7 +54,7 @@ import java.util.concurrent.Executors;
 
 import com.robotemi.sdk.UserInfo;
 
-public class MainActivity extends AppCompatActivity implements
+public class MainActivity extends BaseActivity implements
         OnBatteryStatusChangedListener,
         OnGoToLocationStatusChangedListener {
 

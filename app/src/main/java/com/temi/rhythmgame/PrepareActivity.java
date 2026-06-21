@@ -19,7 +19,7 @@ import androidx.core.content.ContextCompat;
 import java.util.ArrayList;
 import java.util.List;
 
-public class PrepareActivity extends AppCompatActivity {
+public class PrepareActivity extends BaseActivity {
 
     private static final String TAG = "PrepareActivity";
 

@@ -35,7 +35,7 @@ import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
 
-public class MedicationActivity extends AppCompatActivity {
+public class MedicationActivity extends BaseActivity {
 
     private static final String TAG = "MedicationActivity";
     private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
