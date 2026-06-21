@@ -2,6 +2,7 @@
 __pycache__/
 *.pyc
 evidence/
+data/
 firebase_key.json
 firebase-key.json
 firebase-adminsdk*.json
