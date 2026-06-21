@@ -47,6 +47,11 @@ class RobotManager:
                 raise RobotCommandConflict(
                     f"Command {request.command.value} requires a location."
                 )
+            if request.command == RobotCommandType.SET_MEDICATION_ALARM:
+                if request.hour is None or request.minute is None:
+                    raise RobotCommandConflict(
+                        "SET_MEDICATION_ALARM requires hour and minute."
+                    )
 
             active = self._active_command()
             if active and active.status not in TERMINAL_COMMAND_STATUSES:
@@ -77,6 +82,8 @@ class RobotManager:
                 robot_id=request.robot_id,
                 command=request.command,
                 location=request.location,
+                hour=request.hour,
+                minute=request.minute,
             )
             self._commands[command.command_id] = command
             self._active_command_id = command.command_id

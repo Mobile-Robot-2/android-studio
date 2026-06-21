@@ -10,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 
 from action_counter import ActionCounter
 from fall_detector import FallDetector
+from medication_store import MedicationLogRequest, MedicationStore
 from pose_analyzer import MODEL_PATH, PoseAnalyzer
 
 import time
@@ -34,6 +35,8 @@ BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
 CONTROL_PAGE = BASE_DIR / "templates" / "control.html"
 EVIDENCE_DIR = BASE_DIR / "evidence"
+DATA_DIR = BASE_DIR / "data"
+MEDICATION_LOG_PATH = DATA_DIR / "medication_logs.json"
 
 game_start_time = None
 
@@ -49,6 +52,7 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 counter = ActionCounter()
 fall_detector = FallDetector()
 robot_manager = RobotManager()
+medication_store = MedicationStore(MEDICATION_LOG_PATH)
 analyzer: PoseAnalyzer | None = None
 startup_error: str | None = None
 processing_lock = Lock()
@@ -102,8 +106,53 @@ def control_start_patrol(robot_id: str = "temi-01") -> dict:
     return create_robot_command(request)
 
 
+@app.post("/control/medication_alarm")
+def control_medication_alarm(
+    hour: int = Form(...),
+    minute: int = Form(...),
+    robot_id: str = Form("temi-01"),
+) -> dict:
+    request = RobotCommandRequest(
+        robot_id=robot_id,
+        command=RobotCommandType.SET_MEDICATION_ALARM,
+        hour=hour,
+        minute=minute,
+    )
+    return create_robot_command(request)
+
+
+@app.post("/control/cancel_medication_alarm")
+def control_cancel_medication_alarm(robot_id: str = Form("temi-01")) -> dict:
+    request = RobotCommandRequest(
+        robot_id=robot_id,
+        command=RobotCommandType.CANCEL_MEDICATION_ALARM,
+    )
+    return create_robot_command(request)
+
+
+@app.post("/medication/log")
+def add_medication_log(log: MedicationLogRequest) -> dict:
+    entry = medication_store.add_log(log)
+    return {
+        "success": True,
+        "log": entry,
+    }
+
+
+@app.get("/medication/logs")
+def get_medication_logs(robot_id: str = "temi-01") -> dict:
+    return {
+        "success": True,
+        "logs": medication_store.list_logs(robot_id),
+    }
+
+
 @app.post("/robot/command")
 def create_robot_command(request: RobotCommandRequest) -> dict:
+    if request.command == RobotCommandType.START_PATROL:
+        with processing_lock:
+            fall_detector.reset()
+
     try:
         command = robot_manager.create_command(request)
     except RobotCommandConflict as exc:
@@ -305,6 +354,23 @@ def reset() -> dict:
         "clear": state["clear"],
         "game_clear": state["game_clear"],
         "time_over": state["time_over"],
+        **fall_state,
+    }
+
+
+@app.post("/reset_fall")
+def reset_fall() -> dict:
+    """게임 데이터(Firebase/counter)는 건드리지 않고 낙상 검출기 상태만 초기화한다.
+
+    순찰이 홈베이스로 복귀할 때 호출된다. 낙상이 한 번 FALL_CONFIRMED 되면
+    프레임 전송이 멈춰 검출기가 스스로 회복하지 못하고 상태가 남기 때문에,
+    다음 순찰 도착 즉시 fall_detected=True 가 반환되는 문제를 막기 위함이다.
+    """
+    with processing_lock:
+        fall_state = fall_detector.reset()
+    return {
+        "success": True,
+        "message": "Fall detector reset.",
         **fall_state,
     }
 

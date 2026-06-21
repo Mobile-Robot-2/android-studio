@@ -22,6 +22,9 @@ const elements = {
   commandMessage: document.getElementById("commandMessage"),
   userLocation: document.getElementById("userLocation"),
   baseLocation: document.getElementById("baseLocation"),
+  medicationHour: document.getElementById("medicationHour"),
+  medicationMinute: document.getElementById("medicationMinute"),
+  medicationLogs: document.getElementById("medicationLogs"),
 };
 
 const movementStates = new Set(["MOVING_TO_USER", "RETURNING_TO_BASE"]);
@@ -129,10 +132,11 @@ function updateButtonAvailability() {
 
 async function refreshAll() {
   try {
-    const [health, robot, game] = await Promise.all([
+    const [health, robot, game, medication] = await Promise.all([
       requestJson("/health"),
       requestJson("/robot/status"),
       requestJson("/state"),
+      requestJson("/medication/logs?robot_id=temi-01"),
     ]);
 
     elements.serverStatus.textContent =
@@ -143,6 +147,7 @@ async function refreshAll() {
     );
     updateRobotView(robot);
     updateGameView(game);
+    updateMedicationLogs(medication.logs || []);
     elements.lastUpdated.textContent =
       `마지막 갱신 ${new Date().toLocaleTimeString()}`;
   } catch (error) {
@@ -150,6 +155,33 @@ async function refreshAll() {
     setTone(elements.serverStatus, "is-danger");
     elements.commandMessage.textContent = error.message;
   }
+}
+
+function medicationStatusText(status) {
+  if (status === "ALARM_TRIGGERED") {
+    return "알람 울림";
+  }
+  if (status === "TAKEN") {
+    return "복약 완료";
+  }
+  if (status === "NOT_CONFIRMED") {
+    return "미확인";
+  }
+  return status || "-";
+}
+
+function updateMedicationLogs(logs) {
+  if (!logs.length) {
+    elements.medicationLogs.textContent = "기록 없음";
+    return;
+  }
+
+  elements.medicationLogs.innerHTML = logs.slice(0, 20).map((log) => {
+    const time = log.time || log.taken_at || log.checked_at || log.triggered_at || "-";
+    const status = medicationStatusText(log.status);
+    const source = log.source || "-";
+    return `<div class="log-item">${time} / ${status} / ${source}</div>`;
+  }).join("");
 }
 
 async function sendCommand(command) {
@@ -185,11 +217,66 @@ async function sendCommand(command) {
   }
 }
 
+async function setMedicationAlarm() {
+  const hour = Number(elements.medicationHour.value);
+  const minute = Number(elements.medicationMinute.value);
+  if (!Number.isInteger(hour) || hour < 0 || hour > 23) {
+    elements.commandMessage.textContent = "복약 알림 시는 0~23 사이여야 합니다.";
+    return;
+  }
+  if (!Number.isInteger(minute) || minute < 0 || minute > 59) {
+    elements.commandMessage.textContent = "복약 알림 분은 0~59 사이여야 합니다.";
+    return;
+  }
+
+  const form = new FormData();
+  form.append("robot_id", "temi-01");
+  form.append("hour", String(hour));
+  form.append("minute", String(minute));
+
+  elements.commandMessage.textContent = "복약 알림 설정 명령 전송 중";
+  try {
+    const result = await requestJson("/control/medication_alarm", {
+      method: "POST",
+      body: form,
+    });
+    elements.commandMessage.textContent =
+      `${result.command.hour}:${String(result.command.minute).padStart(2, "0")} 복약 알림 명령을 전송했습니다.`;
+    hasActiveCommand = true;
+    updateButtonAvailability();
+    await refreshAll();
+  } catch (error) {
+    elements.commandMessage.textContent = `복약 알림 설정 실패: ${error.message}`;
+  }
+}
+
+async function cancelMedicationAlarm() {
+  const form = new FormData();
+  form.append("robot_id", "temi-01");
+
+  elements.commandMessage.textContent = "복약 알림 취소 명령 전송 중";
+  try {
+    const result = await requestJson("/control/cancel_medication_alarm", {
+      method: "POST",
+      body: form,
+    });
+    elements.commandMessage.textContent =
+      `${result.command.command} 명령을 전송했습니다.`;
+    hasActiveCommand = true;
+    updateButtonAvailability();
+    await refreshAll();
+  } catch (error) {
+    elements.commandMessage.textContent = `복약 알림 취소 실패: ${error.message}`;
+  }
+}
+
 document.querySelectorAll("[data-command]").forEach((button) => {
   button.addEventListener("click", () => sendCommand(button.dataset.command));
 });
 
 document.getElementById("refreshButton").addEventListener("click", refreshAll);
+document.getElementById("setMedicationButton").addEventListener("click", setMedicationAlarm);
+document.getElementById("cancelMedicationButton").addEventListener("click", cancelMedicationAlarm);
 
 refreshAll();
 setInterval(refreshAll, 1000);

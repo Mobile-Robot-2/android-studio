@@ -64,6 +64,26 @@
       </div>
     </section>
 
+    <section class="controls" aria-labelledby="medicationHeading">
+      <h2 id="medicationHeading">복약 알림</h2>
+
+      <div class="medication-time">
+        <label for="medicationHour">시</label>
+        <input id="medicationHour" type="number" min="0" max="23" value="9" inputmode="numeric">
+
+        <label for="medicationMinute">분</label>
+        <input id="medicationMinute" type="number" min="0" max="59" value="30" inputmode="numeric">
+      </div>
+
+      <div class="button-grid">
+        <button id="setMedicationButton" type="button">복약 알림 설정</button>
+        <button id="cancelMedicationButton" class="secondary" type="button">복약 알림 취소</button>
+      </div>
+
+      <h3>복약 기록</h3>
+      <div id="medicationLogs" class="log-list">기록 없음</div>
+    </section>
+
     <section class="status-band" aria-labelledby="gameHeading">
       <h2 id="gameHeading">리듬게임</h2>
       <div class="counts">

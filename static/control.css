@@ -113,6 +113,31 @@ section {
   background: #ffffff;
 }
 
+.medication-time {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+}
+
+.controls h3 {
+  margin: 18px 0 10px;
+  font-size: 0.95rem;
+}
+
+.log-list {
+  display: grid;
+  gap: 8px;
+}
+
+.log-item {
+  padding: 11px 12px;
+  border: 1px solid #cbd5d0;
+  border-radius: 5px;
+  background: #ffffff;
+  overflow-wrap: anywhere;
+}
+
 .button-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
