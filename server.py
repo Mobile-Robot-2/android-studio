@@ -346,6 +346,23 @@ def reset() -> dict:
     }
 
 
+@app.post("/reset_fall")
+def reset_fall() -> dict:
+    """게임 데이터(Firebase/counter)는 건드리지 않고 낙상 검출기 상태만 초기화한다.
+
+    순찰이 홈베이스로 복귀할 때 호출된다. 낙상이 한 번 FALL_CONFIRMED 되면
+    프레임 전송이 멈춰 검출기가 스스로 회복하지 못하고 상태가 남기 때문에,
+    다음 순찰 도착 즉시 fall_detected=True 가 반환되는 문제를 막기 위함이다.
+    """
+    with processing_lock:
+        fall_state = fall_detector.reset()
+    return {
+        "success": True,
+        "message": "Fall detector reset.",
+        **fall_state,
+    }
+
+
 @app.get("/state")
 def state() -> dict:
     with processing_lock:
