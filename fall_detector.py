@@ -10,6 +10,8 @@ RIGHT_SHOULDER = 12
 LEFT_HIP = 23
 RIGHT_HIP = 24
 
+MIN_LANDMARK_VISIBILITY = 0.5
+
 FALL_CONFIRM_SECONDS = 1.2
 RECOVERY_CONFIRM_SECONDS = 1.5
 RECOVERED_DISPLAY_SECONDS = 2.0
@@ -171,6 +173,19 @@ class FallDetector:
         left_hip = landmarks[LEFT_HIP]
         right_hip = landmarks[RIGHT_HIP]
 
+        # 상체(코/어깨)와 골반이 실제로 보일 때만 자세를 판단한다.
+        # 화면 밖 관절은 MediaPipe가 추정한 좌표를 채워 넣으므로,
+        # 이를 그대로 쓰면 차렷 자세(허리 아래만 보임)도 낙상으로 오인한다.
+        upper_body_visible = (
+            self._is_visible(nose)
+            and self._is_visible(left_shoulder)
+            and self._is_visible(right_shoulder)
+        )
+        hips_visible = self._is_visible(left_hip) and self._is_visible(right_hip)
+        if not (upper_body_visible and hips_visible):
+            self.center_history.clear()
+            return self._empty_metrics()
+
         shoulder_x = (left_shoulder.x + right_shoulder.x) / 2
         shoulder_y = (left_shoulder.y + right_shoulder.y) / 2
         hip_x = (left_hip.x + right_hip.x) / 2
@@ -252,6 +267,15 @@ class FallDetector:
         if self.status == "FALL_CONFIRMED":
             score = max(score, 0.8)
         return round(min(score, 1.0), 2)
+
+    @staticmethod
+    def _is_visible(landmark) -> bool:
+        # MediaPipe NormalizedLandmark 는 visibility/presence 를 제공한다.
+        # 속성이 없으면(다른 입력 형식) 보이는 것으로 간주한다.
+        visibility = getattr(landmark, "visibility", None)
+        if visibility is None:
+            return True
+        return visibility >= MIN_LANDMARK_VISIBILITY
 
     @staticmethod
     def _empty_metrics() -> dict:
