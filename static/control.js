@@ -25,7 +25,15 @@ const elements = {
 };
 
 const movementStates = new Set(["MOVING_TO_USER", "RETURNING_TO_BASE"]);
-const busyStates = new Set(["MOVING_TO_USER", "RETURNING_TO_BASE", "CALLING_GUARDIAN"]);
+const busyStates = new Set([
+  "MOVING_TO_USER",
+  "RETURNING_TO_BASE",
+  "CALLING_GUARDIAN",
+  "PATROLLING",
+  "PATROL_MOVING",
+  "PATROL_CHECKING",
+  "PATROL_OBSERVING",
+]);
 let latestRobotState = "OFFLINE";
 let hasActiveCommand = false;
 
@@ -155,11 +163,18 @@ async function sendCommand(command) {
   elements.commandMessage.textContent = "명령 전송 중";
 
   try {
-    const result = await requestJson("/robot/command", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+    const url = command === "START_PATROL"
+      ? "/control/start_patrol"
+      : "/robot/command";
+    const options = command === "START_PATROL"
+      ? { method: "POST" }
+      : {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      };
+
+    const result = await requestJson(url, options);
     elements.commandMessage.textContent =
       `${result.command.command} 명령을 전송했습니다.`;
     hasActiveCommand = true;

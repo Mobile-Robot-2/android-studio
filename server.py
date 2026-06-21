@@ -14,7 +14,7 @@ from pose_analyzer import MODEL_PATH, PoseAnalyzer
 
 import time
 from robot_manager import RobotCommandConflict, RobotManager
-from robot_models import RobotCommandRequest, RobotStatusUpdate
+from robot_models import RobotCommandRequest, RobotCommandType, RobotStatusUpdate
 
 import firebase_admin
 from firebase_admin import credentials, db
@@ -90,6 +90,16 @@ def health() -> dict:
 @app.get("/control", include_in_schema=False)
 def control_page() -> FileResponse:
     return FileResponse(CONTROL_PAGE)
+
+
+@app.post("/control/start_patrol")
+def control_start_patrol(robot_id: str = "temi-01") -> dict:
+    request = RobotCommandRequest(
+        robot_id=robot_id,
+        command=RobotCommandType.START_PATROL,
+        location=None,
+    )
+    return create_robot_command(request)
 
 
 @app.post("/robot/command")
