@@ -19,7 +19,27 @@ import android.content.Intent;
 import java.util.Collections;
 import java.util.List;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
+
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
+
 public class MedicationActivity extends AppCompatActivity {
+
+    private static final String TAG = "MedicationActivity";
+    private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
+    private final OkHttpClient okHttpClient = new OkHttpClient();
 
     private Robot robot; // 주석 해제 완료
     private CountDownTimer countDownTimer;
@@ -65,6 +85,7 @@ public class MedicationActivity extends AppCompatActivity {
 
         tvMessage.setText("복약하실 시간입니다.\n약을 드셨다면 복약 완료 버튼을 눌러주세요.");
         robot.speak(TtsRequest.create("복약하실 시간입니다. 약을 드셨다면 복약 완료 버튼을 눌러주세요.", false));
+        sendMedicationAlarmTriggered();
 
         countDownTimer = new CountDownTimer(30000, 1000) {
 
@@ -80,6 +101,7 @@ public class MedicationActivity extends AppCompatActivity {
                 // (낙상 감지는 순찰 기능에서만 담당하므로 여기서는 수행하지 않는다.)
                 tvMessage.setText("응답이 없어 보호자에게 영상통화를 겁니다.");
                 tvTimer.setText("");
+                sendMedicationNotConfirmed();
                 callGuardian();
             }
         }.start();
@@ -93,12 +115,63 @@ public class MedicationActivity extends AppCompatActivity {
             tvMessage.setText("복약이 확인되었습니다.");
             tvTimer.setText("알람 종료");
             robot.speak(TtsRequest.create("복약이 확인되었습니다. 홈 베이스로 복귀합니다.", false));
+            sendMedicationTaken();
 
             robot.setTrackUserOn(false);
             robot.goTo("home base");
             heartbeat.update("RETURNING_TO_BASE", "home base");
             finish();
         });
+    }
+
+    private String getNowString() {
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.KOREA);
+        sdf.setTimeZone(java.util.TimeZone.getTimeZone("Asia/Seoul"));
+        return sdf.format(new Date());
+    }
+
+    private void sendMedicationAlarmTriggered() {
+        postMedicationLog("ALARM_TRIGGERED", "triggered_at", getNowString(), "alarm");
+    }
+
+    private void sendMedicationTaken() {
+        postMedicationLog("TAKEN", "taken_at", getNowString(), "button");
+    }
+
+    private void sendMedicationNotConfirmed() {
+        postMedicationLog("NOT_CONFIRMED", "checked_at", getNowString(), "timeout");
+    }
+
+    private void postMedicationLog(String status, String timeKey, String timeValue, String source) {
+        try {
+            JSONObject json = new JSONObject();
+            json.put("robot_id", ServerConfig.ROBOT_ID);
+            json.put("status", status);
+            json.put(timeKey, timeValue);
+            json.put("source", source);
+
+            RequestBody body = RequestBody.create(JSON, json.toString());
+            Request request = new Request.Builder()
+                    .url(ServerConfig.BASE_URL + "/medication/log")
+                    .post(body)
+                    .build();
+
+            okHttpClient.newCall(request).enqueue(new Callback() {
+                @Override
+                public void onFailure(Call call, IOException e) {
+                    Log.e(TAG, "Medication log send failed: " + status, e);
+                }
+
+                @Override
+                public void onResponse(Call call, Response response) throws IOException {
+                    String responseBody = response.body() != null ? response.body().string() : "";
+                    Log.d(TAG, "Medication log response: " + response.code() + " / " + responseBody);
+                    response.close();
+                }
+            });
+        } catch (JSONException e) {
+            Log.e(TAG, "Medication log JSON failed: " + status, e);
+        }
     }
 
     /** 복약 무응답 시 보호자에게 영상통화를 연결한다. (낙상 감지 없음) */
