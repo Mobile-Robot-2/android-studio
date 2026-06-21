@@ -70,7 +70,7 @@ public class PatrolActivity extends AppCompatActivity
         implements OnGoToLocationStatusChangedListener {
 
     private static final String TAG = "PatrolActivity";
-    private static final String SERVER_URL = "http://10.168.141.21:8000";
+    private static final String SERVER_URL = ServerConfig.BASE_URL;
     private static final int REQUEST_CAMERA_PERMISSION = 101;
 
     // 순찰 지점 (테미 맵에 저장된 이름과 정확히 일치해야 함)
