@@ -92,17 +92,25 @@ public class MedicationActivity extends AppCompatActivity {
             @Override
             public void onTick(long millisUntilFinished) {
                 int secondsLeft = (int) (millisUntilFinished / 1000);
-                tvTimer.setText(secondsLeft + "초 후 보호자에게 연락합니다.");
+                tvTimer.setText(secondsLeft + "초 안에 복약 확인 버튼을 눌러주세요.");
             }
 
             @Override
             public void onFinish() {
-                // 30초 안에 복약 확인 버튼을 누르지 않음 → 보호자에게 영상통화.
-                // (낙상 감지는 순찰 기능에서만 담당하므로 여기서는 수행하지 않는다.)
-                tvMessage.setText("응답이 없어 보호자에게 영상통화를 겁니다.");
+                tvMessage.setText("복약 확인이 되지 않았습니다.");
                 tvTimer.setText("");
+
+                // 서버(Firebase) 기록만 남김
                 sendMedicationNotConfirmed();
-                callGuardian();
+
+                Log.d(TAG, "복약 미확인 상태 저장 완료");
+
+                // 필요하면 홈베이스 복귀
+                robot.setTrackUserOn(false);
+                robot.goTo("home base");
+                heartbeat.update("RETURNING_TO_BASE", "home base");
+                finish();
+
             }
         }.start();
 
@@ -174,34 +182,6 @@ public class MedicationActivity extends AppCompatActivity {
         }
     }
 
-    /** 복약 무응답 시 보호자에게 영상통화를 연결한다. (낙상 감지 없음) */
-    private void callGuardian() {
-        robot.setTrackUserOn(false);
-        robot.speak(TtsRequest.create("복약 확인이 되지 않아 보호자에게 영상통화를 연결합니다.", false));
-
-        UserInfo adminInfo = robot.getAdminInfo();
-        if (adminInfo != null) {
-            isCallLaunched = true;
-            if (heartbeat != null) {
-                heartbeat.update("CALLING_GUARDIAN", "거실");
-            }
-            robot.startTelepresence(
-                    adminInfo.getName(),
-                    adminInfo.getUserId(),
-                    com.robotemi.sdk.constants.Platform.MOBILE
-            );
-        } else {
-            // 보호자 정보가 없으면 무한 대기하지 않고 복귀
-            Log.e("MedicationActivity", "보호자 정보 없음 - 복귀");
-            robot.speak(TtsRequest.create("연결할 보호자 연락처가 없습니다. 복귀합니다.", false));
-            robot.setTrackUserOn(false);
-            robot.goTo("home base");
-            if (heartbeat != null) {
-                heartbeat.update("RETURNING_TO_BASE", "home base");
-            }
-            finish();
-        }
-    }
 
     @Override
     protected void onStart() {
