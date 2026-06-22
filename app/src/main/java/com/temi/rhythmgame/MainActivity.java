@@ -82,6 +82,7 @@ public class MainActivity extends BaseActivity implements
     private boolean fallMode = false;
     private boolean controlMode = false;
     private boolean isCalledLaunched = false;
+    private boolean guardianMeetingCommand = false;
     private boolean analyzeInFlight = false;
     private boolean singleCheckRequested = false;
     private boolean gameRunning = false;
@@ -527,6 +528,7 @@ public class MainActivity extends BaseActivity implements
             String targetName = adminInfo.getName();
             String targetUserId = adminInfo.getUserId();
 
+            guardianMeetingCommand = false;
             isCalledLaunched = true;
 
             robot.startTelepresence(targetName, targetUserId, com.robotemi.sdk.constants.Platform.MOBILE);
@@ -543,6 +545,25 @@ public class MainActivity extends BaseActivity implements
         }
 
 
+    }
+
+    private boolean startGuardianMeeting() {
+        Robot robot = Robot.getInstance();
+        UserInfo adminInfo = robot.getAdminInfo();
+
+        if (adminInfo != null) {
+            guardianMeetingCommand = true;
+            isCalledLaunched = true;
+            robot.startTelepresence(
+                    adminInfo.getName(),
+                    adminInfo.getUserId(),
+                    com.robotemi.sdk.constants.Platform.MOBILE
+            );
+            return true;
+        }
+
+        Log.e("CALL", "Guardian information not found");
+        return false;
     }
 
     private void pollCommand() {
@@ -632,6 +653,16 @@ public class MainActivity extends BaseActivity implements
                 updateStatusText();
                 postRobotStatus();
                 if (!callGuardian()) {
+                    failActiveCommand("Guardian information not found");
+                }
+                break;
+            case "MEET_GUARDIAN":
+                stopLocalWork();
+                robotState = "MEETING_GUARDIAN";
+                commandStatus = "RUNNING";
+                updateStatusText();
+                postRobotStatus();
+                if (!startGuardianMeeting()) {
                     failActiveCommand("Guardian information not found");
                 }
                 break;
@@ -844,7 +875,8 @@ public class MainActivity extends BaseActivity implements
 
             // 다음 통화를 위해 초기화
             isCalledLaunched = false;
-            robotState = "RETURNING_TO_BASE";
+            robotState = guardianMeetingCommand ? "IDLE_AT_BASE" : "RETURNING_TO_BASE";
+            guardianMeetingCommand = false;
             commandStatus = "COMPLETED";
             completeActiveCommand(null);
 
