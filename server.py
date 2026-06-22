@@ -290,9 +290,14 @@ async def _analyze_upload(
             if analysis["detected"]:
                 state = counter.update(analysis["detections"], elapsed_time=elapsed_time)
                 fall_state = fall_detector.update(analysis["landmarks"])
+                pose_not_found = False
             else:
                 state = counter.mark_no_pose(elapsed_time=elapsed_time)
-                fall_state = fall_detector.update_no_pose()
+                if session_state["session_id"] is not None:
+                    fall_state = _pose_not_found_fall_state()
+                else:
+                    fall_state = fall_detector.update_no_pose()
+                pose_not_found = True
 
             fall_event = fall_state.get("fall_event", {})
             if fall_event.get("new_event"):
@@ -305,6 +310,9 @@ async def _analyze_upload(
                 fall_detector.mark_event_handled()
 
             session_state = _update_fall_tracking_locked(session_state, fall_state)
+            image_shape = _image_shape_from_bytes(image_bytes) if pose_not_found else None
+            if pose_not_found and session_state["session_id"] is not None:
+                _log_pose_not_found(session_state, image_shape)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
@@ -335,6 +343,8 @@ async def _analyze_upload(
         "time_over": state["time_over"],
         **fall_state,
         "confidence": fall_state["fall_confidence"],
+        "pose_not_found": pose_not_found,
+        "image_shape": image_shape,
         **session_state,
         "elapsed_time": elapsed_time,
     }
@@ -383,6 +393,9 @@ def _prepare_fall_session_locked(
             "stale": False,
             "fall_counter": fall_frame_counter,
             "consecutive_fall_count": consecutive_fall_count,
+            "confirm_count": consecutive_fall_count,
+            "last_session_id": current_fall_session_id,
+            "last_location": current_fall_location,
         }
 
     if (
@@ -397,6 +410,9 @@ def _prepare_fall_session_locked(
             "current_location": current_fall_location,
             "fall_counter": fall_frame_counter,
             "consecutive_fall_count": consecutive_fall_count,
+            "confirm_count": consecutive_fall_count,
+            "last_session_id": current_fall_session_id,
+            "last_location": current_fall_location,
         }
 
     if normalized_session_id != current_fall_session_id:
@@ -418,6 +434,9 @@ def _prepare_fall_session_locked(
             "current_location": current_fall_location,
             "fall_counter": fall_frame_counter,
             "consecutive_fall_count": consecutive_fall_count,
+            "confirm_count": consecutive_fall_count,
+            "last_session_id": current_fall_session_id,
+            "last_location": current_fall_location,
         }
 
     return {
@@ -426,6 +445,9 @@ def _prepare_fall_session_locked(
         "stale": False,
         "fall_counter": fall_frame_counter,
         "consecutive_fall_count": consecutive_fall_count,
+        "confirm_count": consecutive_fall_count,
+        "last_session_id": current_fall_session_id,
+        "last_location": current_fall_location,
     }
 
 
@@ -443,6 +465,9 @@ def _update_fall_tracking_locked(session_state: dict, fall_state: dict) -> dict:
 
     session_state["fall_counter"] = fall_frame_counter
     session_state["consecutive_fall_count"] = consecutive_fall_count
+    session_state["confirm_count"] = consecutive_fall_count
+    session_state["last_session_id"] = current_fall_session_id
+    session_state["last_location"] = current_fall_location
     last_fall_result = {
         "fall_detected": fall_state["fall_detected"],
         "fall_status": fall_state["fall_status"],
@@ -451,6 +476,7 @@ def _update_fall_tracking_locked(session_state: dict, fall_state: dict) -> dict:
         "location": session_state["location"],
         "fall_counter": fall_frame_counter,
         "consecutive_fall_count": consecutive_fall_count,
+        "confirm_count": consecutive_fall_count,
     }
     return session_state
 
@@ -477,6 +503,8 @@ def _stale_analyze_response(session_state: dict, elapsed_time: float | None) -> 
         "fall_status": "NORMAL",
         "fall_confidence": 0.0,
         "confidence": 0.0,
+        "pose_not_found": False,
+        "image_shape": None,
         "fall_metrics": {},
         "fall_event": {
             "new_event": False,
@@ -496,9 +524,46 @@ def _log_fall_frame(result: dict) -> None:
         f"fall_detected={result.get('fall_detected')} "
         f"fall_status={result.get('fall_status')} "
         f"confidence={result.get('confidence', result.get('fall_confidence'))} "
+        f"confirm_count={result.get('confirm_count')} "
         f"fall_counter={result.get('fall_counter')} "
         f"consecutive_fall_count={result.get('consecutive_fall_count')} "
         f"stale={result.get('stale')}"
+    )
+
+
+def _pose_not_found_fall_state() -> dict:
+    return {
+        "fall_detected": False,
+        "fall_status": "NORMAL",
+        "fall_confidence": 0.0,
+        "fall_metrics": {},
+        "fall_event": {
+            "new_event": False,
+            "event_id": None,
+            "evidence_image": None,
+        },
+    }
+
+
+def _image_shape_from_bytes(image_bytes: bytes) -> list[int] | None:
+    try:
+        image_array = np.frombuffer(image_bytes, dtype=np.uint8)
+        frame = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
+        if frame is None:
+            return None
+        height, width = frame.shape[:2]
+        channels = frame.shape[2] if len(frame.shape) == 3 else 1
+        return [height, width, channels]
+    except Exception:
+        return None
+
+
+def _log_pose_not_found(session_state: dict, image_shape: list[int] | None) -> None:
+    print(
+        "pose_not_found "
+        f"session_id={session_state.get('session_id')} "
+        f"location={session_state.get('location')} "
+        f"image_shape={image_shape}"
     )
 
 
@@ -570,6 +635,9 @@ def reset_fall() -> dict:
         "stale": False,
         "fall_counter": 0,
         "consecutive_fall_count": 0,
+        "confirm_count": 0,
+        "last_session_id": None,
+        "last_location": None,
         "confidence": fall_state["fall_confidence"],
         **fall_state,
     }
