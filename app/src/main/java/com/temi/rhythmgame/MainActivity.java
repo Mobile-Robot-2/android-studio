@@ -655,13 +655,6 @@ public class MainActivity extends BaseActivity implements
                 break;
             case "CALL_GUARDIAN":
                 stopLocalWork();
-                robot.speak(TtsRequest.create(
-                                "보호자와 영상통화를 연결하겠습니다. 잠시만 기다려주세요.",
-                                false));
-                new Handler(Looper.getMainLooper()).postDelayed(() -> {
-                    callGuardian();
-                }, 5000);
-
                 robotState = "CALLING_GUARDIAN";
                 commandStatus = "RUNNING";
                 updateStatusText();
@@ -672,13 +665,18 @@ public class MainActivity extends BaseActivity implements
                 break;
             case "MEET_GUARDIAN":
                 stopLocalWork();
+                robot.speak(TtsRequest.create(
+                        "보호자와 영상통화를 연결하겠습니다. 잠시만 기다려주세요.",
+                        false));
                 robotState = "MEETING_GUARDIAN";
                 commandStatus = "RUNNING";
                 updateStatusText();
                 postRobotStatus();
-                if (!startGuardianMeeting()) {
-                    failActiveCommand("Guardian information not found");
-                }
+                new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                    if (!startGuardianMeeting()) {
+                        failActiveCommand("Guardian information not found");
+                    }
+                }, 3000);
                 break;
             case "EMERGENCY_STOP":
                 stopLocalWork();
