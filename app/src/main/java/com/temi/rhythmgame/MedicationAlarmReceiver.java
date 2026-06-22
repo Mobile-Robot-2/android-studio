@@ -15,16 +15,12 @@ public class MedicationAlarmReceiver extends BroadcastReceiver {
                 "복약 알람 수신"
         );
 
-        Intent alarmIntent =
-                new Intent(
-                        context,
-                        MedicationActivity.class
-                );
+        int hour = intent.getIntExtra("ALARM_HOUR", -1);
+        int minute = intent.getIntExtra("ALARM_MINUTE", -1);
 
-        alarmIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        alarmIntent.putExtra("ALARM_HOUR", intent.getIntExtra("ALARM_HOUR", -1));
-        alarmIntent.putExtra("ALARM_MINUTE", intent.getIntExtra("ALARM_MINUTE", -1));
-
-        context.startActivity(alarmIntent);
+        // 직접 startActivity 하지 않고 조정자를 거친다.
+        // 로봇이 순찰/게임 등으로 바쁘면 복약 알람은 시각과 함께 pending 으로 미뤄졌다가
+        // 그 작업이 끝난 뒤 실행된다. (겹침 방지 / 복약 알람 유실 방지)
+        CareTaskCoordinator.requestMedication(context, hour, minute);
     }
 }

@@ -70,9 +70,12 @@ public class PatrolHelper {
         Log.d(TAG, "다음 순찰 예약: " + intervalMinutes + "분 뒤");
     }
 
-    /** 순찰을 중지한다. (예약 취소 + 저장된 주기 삭제) */
+    /** 순찰을 중지한다. (예약 취소 + 저장된 주기 삭제 + 대기 중인 순찰 제거) */
     public static void cancelPatrol(Context context) {
         getPrefs(context).edit().remove(KEY_INTERVAL_MIN).apply();
+
+        // 바빠서 미뤄둔(pending) 순찰이 남아 있으면 끄기 후에도 한 번 더 도는 것을 막는다.
+        CareTaskCoordinator.clearPendingPatrol(context);
 
         AlarmManager alarmManager =
                 (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);

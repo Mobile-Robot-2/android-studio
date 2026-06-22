@@ -701,7 +701,7 @@ public class MainActivity extends BaseActivity implements
         robotState = "READY_FOR_GAME";
         completeActiveCommand(null);
         CareTaskCoordinator.clearBusy(this);
-        CareTaskCoordinator.runPendingPatrolIfAny(this);
+        CareTaskCoordinator.runNextPendingTask(this);
     }
 
     private void stopLocalWork() {

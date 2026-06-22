@@ -117,7 +117,7 @@ public class MedicationActivity extends BaseActivity {
                 robot.goTo("home base");
                 heartbeat.update("RETURNING_TO_BASE", "home base");
                 CareTaskCoordinator.clearBusy(MedicationActivity.this);
-                CareTaskCoordinator.runPendingPatrolIfAny(MedicationActivity.this);
+                CareTaskCoordinator.runNextPendingTask(MedicationActivity.this);
                 finish();
 
 
@@ -141,7 +141,7 @@ public class MedicationActivity extends BaseActivity {
             robot.goTo("home base");
             heartbeat.update("RETURNING_TO_BASE", "home base");
             CareTaskCoordinator.clearBusy(this);
-            CareTaskCoordinator.runPendingPatrolIfAny(this);
+            CareTaskCoordinator.runNextPendingTask(this);
             finish();
         });
     }
@@ -235,7 +235,7 @@ public class MedicationActivity extends BaseActivity {
                 heartbeat.update("RETURNING_TO_BASE", "home base");
             }
             CareTaskCoordinator.clearBusy(this);
-            CareTaskCoordinator.runPendingPatrolIfAny(this);
+            CareTaskCoordinator.runNextPendingTask(this);
             finish();
         }
     }
@@ -270,7 +270,7 @@ public class MedicationActivity extends BaseActivity {
             // 다음 알람을 위해 플래그 원상복구
             isCallLaunched = false;
             CareTaskCoordinator.clearBusy(this);
-            CareTaskCoordinator.runPendingPatrolIfAny(this);
+            CareTaskCoordinator.runNextPendingTask(this);
 
             // 시선 추적 끄고 진짜 충전소로 복귀
             if (robot != null) {

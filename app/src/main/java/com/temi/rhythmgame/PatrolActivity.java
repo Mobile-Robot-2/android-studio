@@ -115,6 +115,9 @@ public class PatrolActivity extends BaseActivity
                         | WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
         );
 
+        // 진행 플래그 보강 (startPatrol 에서 이미 올렸지만, 재생성 등 어떤 경로로 진입해도 보장)
+        CareTaskCoordinator.setPatrolInProgress(true);
+
         hideSystemUI();
         setContentView(R.layout.activity_patrol);
 
@@ -158,6 +161,10 @@ public class PatrolActivity extends BaseActivity
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        // 순찰 종료 → 진행 플래그 해제 (다음 주기 알람이 정상적으로 순찰을 띄울 수 있게)
+        CareTaskCoordinator.setPatrolInProgress(false);
+        // 순찰 도중 들어와 대기 중이던 복약/게임 작업이 있으면 이제 하나 실행
+        CareTaskCoordinator.runNextPendingTask(getApplicationContext());
         handler.removeCallbacks(startObservationRunnable);
         handler.removeCallbacks(endObservationRunnable);
         if (robot != null) {

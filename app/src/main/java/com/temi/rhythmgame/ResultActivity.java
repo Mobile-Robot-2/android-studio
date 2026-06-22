@@ -40,6 +40,11 @@ public class ResultActivity extends BaseActivity {
     private static final String TAG = "ResultActivity";
     private CountDownTimer loadingTimer;
 
+    // 결과 표시(정상 종료)까지 마쳐 busy 를 이미 해제했는지.
+    // true 면 onDestroy 의 안전망 clearBusy 를 건너뛴다 — 그 사이 대기 작업을 배출해
+    // 그 작업이 새로 건 busy 를 onDestroy 가 지워버리는 race 를 막기 위함.
+    private boolean taskCompleted = false;
+
     private int finalCalculatedScore = 0;
     private int hitCount = 0;
 
@@ -141,8 +146,9 @@ public class ResultActivity extends BaseActivity {
 
                 String ttsMessage = "최종 점수는 " + finalCalculatedScore + "점입니다. 수고하셨습니다!";
                 robot.speak(TtsRequest.create(ttsMessage, false));
+                taskCompleted = true;
                 CareTaskCoordinator.clearBusy(ResultActivity.this);
-                CareTaskCoordinator.runPendingPatrolIfAny(ResultActivity.this);
+                CareTaskCoordinator.runNextPendingTask(ResultActivity.this);
 
                 // robot.goTo("home base");
             }
@@ -319,7 +325,12 @@ public class ResultActivity extends BaseActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        CareTaskCoordinator.clearBusy(this);
+        // 정상 종료(결과 표시)로 이미 busy 를 해제·배출했다면 여기서 또 건드리지 않는다.
+        // 결과 화면이 일찍 파괴된 경우에만 안전망으로 busy 를 풀고 대기 작업을 배출한다.
+        if (!taskCompleted) {
+            CareTaskCoordinator.clearBusy(this);
+            CareTaskCoordinator.runNextPendingTask(this);
+        }
         if (loadingTimer != null) loadingTimer.cancel();
         if (robot != null) robot.cancelAllTtsRequests();
         if (heartbeat != null) heartbeat.stop();
