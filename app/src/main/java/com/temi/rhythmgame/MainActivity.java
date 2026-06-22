@@ -56,7 +56,8 @@ import com.robotemi.sdk.UserInfo;
 
 public class MainActivity extends BaseActivity implements
         OnBatteryStatusChangedListener,
-        OnGoToLocationStatusChangedListener {
+        OnGoToLocationStatusChangedListener,
+        Robot.TtsListener {
 
     private static final String TAG = "MainActivity";
     private static final int REQUEST_CAMERA_PERMISSION = 100;
@@ -83,6 +84,7 @@ public class MainActivity extends BaseActivity implements
     private boolean controlMode = false;
     private boolean isCalledLaunched = false;
     private boolean guardianMeetingCommand = false;
+    private boolean waitingGuardianMeetingTts = false;
     private boolean analyzeInFlight = false;
     private boolean singleCheckRequested = false;
     private boolean gameRunning = false;
@@ -175,6 +177,7 @@ public class MainActivity extends BaseActivity implements
         if (robot != null) {
             robot.addOnBatteryStatusChangedListener(this);
             robot.addOnGoToLocationStatusChangedListener(this);
+            robot.addTtsListener(this);
         }
         serverHandler.post(commandPollRunnable);
         serverHandler.post(statusHeartbeatRunnable);
@@ -186,6 +189,7 @@ public class MainActivity extends BaseActivity implements
         if (robot != null) {
             robot.removeOnBatteryStatusChangedListener(this);
             robot.removeOnGoToLocationStatusChangedListener(this);
+            robot.removeTtsListener(this);
         }
         serverHandler.removeCallbacks(commandPollRunnable);
         serverHandler.removeCallbacks(statusHeartbeatRunnable);
@@ -665,6 +669,7 @@ public class MainActivity extends BaseActivity implements
                 break;
             case "MEET_GUARDIAN":
                 stopLocalWork();
+                waitingGuardianMeetingTts = true;
                 robot.speak(TtsRequest.create(
                         "보호자와 영상통화를 연결하겠습니다. 잠시만 기다려주세요.",
                         false));
@@ -672,11 +677,6 @@ public class MainActivity extends BaseActivity implements
                 commandStatus = "RUNNING";
                 updateStatusText();
                 postRobotStatus();
-                new Handler(Looper.getMainLooper()).postDelayed(() -> {
-                    if (!startGuardianMeeting()) {
-                        failActiveCommand("Guardian information not found");
-                    }
-                }, 3000);
                 break;
             case "EMERGENCY_STOP":
                 stopLocalWork();
@@ -779,6 +779,24 @@ public class MainActivity extends BaseActivity implements
         activeCommandId = null;
         activeCommandName = null;
         updateStatusText();
+    }
+
+    @Override
+    public void onTtsStatusChanged(TtsRequest ttsRequest) {
+        if (!waitingGuardianMeetingTts
+                || ttsRequest.getStatus() != TtsRequest.Status.COMPLETED) {
+            return;
+        }
+
+        waitingGuardianMeetingTts = false;
+        runOnUiThread(() -> {
+            if (!"MEET_GUARDIAN".equals(activeCommandName)) {
+                return;
+            }
+            if (!startGuardianMeeting()) {
+                failActiveCommand("Guardian information not found");
+            }
+        });
     }
 
     private void postRobotStatus() {
