@@ -56,6 +56,12 @@ medication_store = MedicationStore(MEDICATION_LOG_PATH)
 analyzer: PoseAnalyzer | None = None
 startup_error: str | None = None
 processing_lock = Lock()
+current_fall_session_id: str | None = None
+current_fall_location: str | None = None
+seen_fall_session_ids: set[str] = set()
+fall_frame_counter = 0
+consecutive_fall_count = 0
+last_fall_result: dict | None = None
 
 
 @app.get("/")
@@ -152,7 +158,7 @@ def get_medication_logs(robot_id: str = "temi-01") -> dict:
 def create_robot_command(request: RobotCommandRequest) -> dict:
     if request.command == RobotCommandType.START_PATROL:
         with processing_lock:
-            fall_detector.reset()
+            _reset_fall_tracking_locked()
 
     try:
         command = robot_manager.create_command(request)
@@ -227,8 +233,19 @@ async def analyze(
 async def analyze_frame(
     image: UploadFile = File(...),
     elapsed_time: float | None = Form(None),
+    session_id: str | None = Form(None),
+    location: str | None = Form(None),
 ) -> dict:
-    result = await _analyze_upload(image, elapsed_time)
+    result = await _analyze_upload(
+        image,
+        elapsed_time=elapsed_time,
+        session_id=session_id,
+        location=location,
+    )
+
+    if result.get("stale"):
+        _log_fall_frame(result)
+        return result
 
     firebase_data = {
         "timestamp": time.time(),
@@ -240,10 +257,16 @@ async def analyze_frame(
     db.reference("game/current").set(firebase_data)
     db.reference("game/history").push(firebase_data)
 
+    _log_fall_frame(result)
     return result
 
 
-async def _analyze_upload(upload: UploadFile, elapsed_time: float | None = None) -> dict:
+async def _analyze_upload(
+    upload: UploadFile,
+    elapsed_time: float | None = None,
+    session_id: str | None = None,
+    location: str | None = None,
+) -> dict:
     if analyzer is None:
         raise HTTPException(
             status_code=500,
@@ -259,6 +282,10 @@ async def _analyze_upload(upload: UploadFile, elapsed_time: float | None = None)
 
     try:
         with processing_lock:
+            session_state = _prepare_fall_session_locked(session_id, location)
+            if session_state["stale"]:
+                return _stale_analyze_response(session_state, elapsed_time)
+
             analysis = analyzer.analyze_image_bytes(image_bytes)
             if analysis["detected"]:
                 state = counter.update(analysis["detections"], elapsed_time=elapsed_time)
@@ -276,6 +303,8 @@ async def _analyze_upload(upload: UploadFile, elapsed_time: float | None = None)
                 fall_detector.attach_evidence_image(evidence_image)
                 fall_state["fall_event"]["evidence_image"] = evidence_image
                 fall_detector.mark_event_handled()
+
+            session_state = _update_fall_tracking_locked(session_state, fall_state)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
@@ -305,8 +334,172 @@ async def _analyze_upload(upload: UploadFile, elapsed_time: float | None = None)
         "game_clear": state["game_clear"],
         "time_over": state["time_over"],
         **fall_state,
+        "confidence": fall_state["fall_confidence"],
+        **session_state,
         "elapsed_time": elapsed_time,
     }
+
+
+def _normalize_form_value(value: str | None) -> str | None:
+    if value is None:
+        return None
+    value = value.strip()
+    return value or None
+
+
+def _reset_fall_tracking_locked() -> dict:
+    global current_fall_session_id
+    global current_fall_location
+    global fall_frame_counter
+    global consecutive_fall_count
+    global last_fall_result
+
+    fall_state = fall_detector.reset()
+    current_fall_session_id = None
+    current_fall_location = None
+    fall_frame_counter = 0
+    consecutive_fall_count = 0
+    last_fall_result = None
+    return fall_state
+
+
+def _prepare_fall_session_locked(
+    session_id: str | None,
+    location: str | None,
+) -> dict:
+    global current_fall_session_id
+    global current_fall_location
+    global seen_fall_session_ids
+    global fall_frame_counter
+    global consecutive_fall_count
+    global last_fall_result
+
+    normalized_session_id = _normalize_form_value(session_id)
+    normalized_location = _normalize_form_value(location)
+    if normalized_session_id is None:
+        return {
+            "session_id": None,
+            "location": normalized_location,
+            "stale": False,
+            "fall_counter": fall_frame_counter,
+            "consecutive_fall_count": consecutive_fall_count,
+        }
+
+    if (
+        normalized_session_id != current_fall_session_id
+        and normalized_session_id in seen_fall_session_ids
+    ):
+        return {
+            "session_id": normalized_session_id,
+            "location": normalized_location,
+            "stale": True,
+            "current_session_id": current_fall_session_id,
+            "current_location": current_fall_location,
+            "fall_counter": fall_frame_counter,
+            "consecutive_fall_count": consecutive_fall_count,
+        }
+
+    if normalized_session_id != current_fall_session_id:
+        fall_detector.reset()
+        current_fall_session_id = normalized_session_id
+        current_fall_location = normalized_location
+        seen_fall_session_ids.add(normalized_session_id)
+        fall_frame_counter = 0
+        consecutive_fall_count = 0
+        last_fall_result = None
+    elif current_fall_location is None:
+        current_fall_location = normalized_location
+    elif normalized_location and normalized_location != current_fall_location:
+        return {
+            "session_id": normalized_session_id,
+            "location": normalized_location,
+            "stale": True,
+            "current_session_id": current_fall_session_id,
+            "current_location": current_fall_location,
+            "fall_counter": fall_frame_counter,
+            "consecutive_fall_count": consecutive_fall_count,
+        }
+
+    return {
+        "session_id": normalized_session_id,
+        "location": current_fall_location or normalized_location,
+        "stale": False,
+        "fall_counter": fall_frame_counter,
+        "consecutive_fall_count": consecutive_fall_count,
+    }
+
+
+def _update_fall_tracking_locked(session_state: dict, fall_state: dict) -> dict:
+    global fall_frame_counter
+    global consecutive_fall_count
+    global last_fall_result
+
+    if session_state["session_id"] is not None:
+        fall_frame_counter += 1
+        if fall_state["fall_detected"]:
+            consecutive_fall_count += 1
+        else:
+            consecutive_fall_count = 0
+
+    session_state["fall_counter"] = fall_frame_counter
+    session_state["consecutive_fall_count"] = consecutive_fall_count
+    last_fall_result = {
+        "fall_detected": fall_state["fall_detected"],
+        "fall_status": fall_state["fall_status"],
+        "confidence": fall_state["fall_confidence"],
+        "session_id": session_state["session_id"],
+        "location": session_state["location"],
+        "fall_counter": fall_frame_counter,
+        "consecutive_fall_count": consecutive_fall_count,
+    }
+    return session_state
+
+
+def _stale_analyze_response(session_state: dict, elapsed_time: float | None) -> dict:
+    current_state = counter.get_state()
+    return {
+        "success": True,
+        "detected": False,
+        "message": "Stale patrol frame ignored.",
+        "detected_action": current_state["detected_action"],
+        "expected_action": current_state["expected_action"],
+        "action_correct": current_state["action_correct"],
+        "action_score": current_state["action_score"],
+        "total_pose_score": current_state["total_pose_score"],
+        "current_actions": current_state["current_actions"],
+        "counts": current_state["counts"],
+        "target_count": current_state["target_count"],
+        "remaining_time": current_state["remaining_time"],
+        "clear": current_state["clear"],
+        "game_clear": current_state["game_clear"],
+        "time_over": current_state["time_over"],
+        "fall_detected": False,
+        "fall_status": "NORMAL",
+        "fall_confidence": 0.0,
+        "confidence": 0.0,
+        "fall_metrics": {},
+        "fall_event": {
+            "new_event": False,
+            "event_id": None,
+            "evidence_image": None,
+        },
+        **session_state,
+        "elapsed_time": elapsed_time,
+    }
+
+
+def _log_fall_frame(result: dict) -> None:
+    print(
+        "fall_frame "
+        f"session_id={result.get('session_id')} "
+        f"location={result.get('location')} "
+        f"fall_detected={result.get('fall_detected')} "
+        f"fall_status={result.get('fall_status')} "
+        f"confidence={result.get('confidence', result.get('fall_confidence'))} "
+        f"fall_counter={result.get('fall_counter')} "
+        f"consecutive_fall_count={result.get('consecutive_fall_count')} "
+        f"stale={result.get('stale')}"
+    )
 
 
 def _save_fall_evidence_image(image_bytes: bytes, event_id: str) -> str | None:
@@ -337,7 +530,7 @@ def reset() -> dict:
 
     with processing_lock:
         state = counter.reset()
-        fall_state = fall_detector.reset()
+        fall_state = _reset_fall_tracking_locked()
     game_start_time = time.time()
     print(f"게임 시작: {game_start_time}")
     return {
@@ -368,10 +561,16 @@ def reset_fall() -> dict:
     다음 순찰 도착 즉시 fall_detected=True 가 반환되는 문제를 막기 위함이다.
     """
     with processing_lock:
-        fall_state = fall_detector.reset()
+        fall_state = _reset_fall_tracking_locked()
     return {
         "success": True,
         "message": "Fall detector reset.",
+        "session_id": None,
+        "location": None,
+        "stale": False,
+        "fall_counter": 0,
+        "consecutive_fall_count": 0,
+        "confidence": fall_state["fall_confidence"],
         **fall_state,
     }
 
