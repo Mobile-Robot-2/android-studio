@@ -83,6 +83,8 @@ public class PatrolActivity extends BaseActivity
     private static final int HEAD_DOWN_ANGLE = -25;    // 고개 최저 (바닥 감지용)
     private static final int HEAD_RESET_ANGLE = 10;    // 복귀 시 기본 시선
     private static final long RETURN_TIMEOUT_MS = 90_000; // 홈베이스 복귀 도착 대기 한도
+    private static final int MAX_LEG_RETRIES = 2;       // 지점 이동 abort 시 재시도 횟수
+    private static final long RETRY_DELAY_MS = 2_000;   // 재시도 전 대기(장애물/측위 회복 시간)
 
     private Robot robot;
     private PreviewView previewView;
@@ -104,12 +106,22 @@ public class PatrolActivity extends BaseActivity
     private boolean returningToBase = false;
     private boolean finishCalled = false;
 
+    private int legRetryCount = 0; // 현재 지점 이동 재시도 누적 횟수
+
     private final Runnable startObservationRunnable = this::startObservation;
     private final Runnable endObservationRunnable = this::endObservation;
     // 도착 콜백이 끝내 오지 않는 경우(도킹 실패 등) 대비한 안전 종료
     private final Runnable returnTimeoutRunnable = () -> {
         Log.w(TAG, "홈베이스 복귀 타임아웃 - 순찰 강제 종료");
         safeFinish();
+    };
+    // abort 된 현재 지점으로 재이동 (장애물/측위가 잠시 뒤 회복되는 경우 대비)
+    private final Runnable retryGoToRunnable = () -> {
+        if (currentTarget != null && !returningToBase && !finishCalled) {
+            Log.d(TAG, "이동 재시도 실행: " + currentTarget);
+            robot.setTrackUserOn(false);
+            robot.goTo(currentTarget);
+        }
     };
 
     // ───────────────── 생명주기 ──────────────────────────────────────────
@@ -178,6 +190,7 @@ public class PatrolActivity extends BaseActivity
         handler.removeCallbacks(startObservationRunnable);
         handler.removeCallbacks(endObservationRunnable);
         handler.removeCallbacks(returnTimeoutRunnable);
+        handler.removeCallbacks(retryGoToRunnable);
         if (robot != null) {
             robot.removeOnGoToLocationStatusChangedListener(this);
             robot.setTrackUserOn(false);
@@ -203,6 +216,7 @@ public class PatrolActivity extends BaseActivity
         }
 
         currentTarget = PATROL_LOCATIONS[locationIndex];
+        legRetryCount = 0; // 새 지점이므로 재시도 카운트 초기화
         updatePatrolStatus("PATROL_MOVING", currentTarget);
         setStatus(currentTarget + "(으)로 이동 중...");
         Log.d(TAG, "이동 시작: " + currentTarget);
@@ -240,10 +254,21 @@ public class PatrolActivity extends BaseActivity
             Log.d(TAG, "도착: " + location);
             onArrived();
         } else if (OnGoToLocationStatusChangedListener.ABORT.equals(status)) {
-            // 이동 실패 → 해당 지점은 건너뛰고 다음 지점으로
-            Log.w(TAG, "이동 실패(abort): " + location + " - 다음 지점으로");
-            locationIndex++;
-            handler.post(this::startNextLeg);
+            // 이동 실패(abort): 장애물/측위/준비미완 등 대개 일시적 → 우선 재시도
+            Log.w(TAG, "이동 실패(abort): " + location
+                    + " (사유: " + description + " / descId=" + descriptionId + ")");
+            if (legRetryCount < MAX_LEG_RETRIES) {
+                legRetryCount++;
+                Log.w(TAG, "재시도 " + legRetryCount + "/" + MAX_LEG_RETRIES + ": " + location);
+                setStatus(location + " 이동 재시도 " + legRetryCount + "...");
+                handler.removeCallbacks(retryGoToRunnable);
+                handler.postDelayed(retryGoToRunnable, RETRY_DELAY_MS);
+            } else {
+                // 재시도도 실패 → 이 지점은 포기하고 다음 지점으로
+                Log.w(TAG, location + " 이동 최종 실패 - 다음 지점으로");
+                locationIndex++;
+                handler.post(this::startNextLeg);
+            }
         }
     }
 
