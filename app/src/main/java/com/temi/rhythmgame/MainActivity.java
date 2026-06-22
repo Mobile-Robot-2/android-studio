@@ -627,7 +627,7 @@ public class MainActivity extends BaseActivity implements
                 break;
             case "CHECK_USER":
                 robotState = "CHECKING_USER";
-                singleCheckRequested = true;
+//                singleCheckRequested = true;
                 commandStatus = "RUNNING";
                 updateStatusText();
                 postRobotStatus();
@@ -850,7 +850,7 @@ public class MainActivity extends BaseActivity implements
         if (OnGoToLocationStatusChangedListener.COMPLETE.equals(status)) {
             if ("GO_TO_USER".equals(activeCommandName)) {
                 robotState = "CHECKING_USER";
-                singleCheckRequested = true;
+//                singleCheckRequested = true;
                 commandStatus = "RUNNING";
             } else if ("RETURN_TO_BASE".equals(activeCommandName)) {
                 robotState = "IDLE_AT_BASE";
