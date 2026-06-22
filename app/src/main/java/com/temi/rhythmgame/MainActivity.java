@@ -82,6 +82,7 @@ public class MainActivity extends BaseActivity implements
     private boolean fallMode = false;
     private boolean controlMode = false;
     private boolean isCalledLaunched = false;
+    private boolean guardianMeetingCommand = false;
     private boolean analyzeInFlight = false;
     private boolean singleCheckRequested = false;
     private boolean gameRunning = false;
@@ -99,6 +100,7 @@ public class MainActivity extends BaseActivity implements
     private String commandStatus = null;
     private String lastError = null;
     private JSONObject statusResult = null;
+    private ProcessCameraProvider cameraProvider;
 
     private final Runnable commandPollRunnable = new Runnable() {
         @Override
@@ -121,6 +123,7 @@ public class MainActivity extends BaseActivity implements
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        Log.d("LIFECYCLE", "onCreate");
 
         sdf.setTimeZone(java.util.TimeZone.getTimeZone("Asia/Seoul"));
 
@@ -216,6 +219,7 @@ public class MainActivity extends BaseActivity implements
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        Log.d("LIFECYCLE", "onDestroy");
         if (videoView != null && videoView.isPlaying()) videoView.stopPlayback();
         if (cameraExecutor != null) {
             cameraExecutor.shutdown();
@@ -306,7 +310,7 @@ public class MainActivity extends BaseActivity implements
 
         cameraProviderFuture.addListener(() -> {
             try {
-                ProcessCameraProvider cameraProvider = cameraProviderFuture.get();
+                cameraProvider = cameraProviderFuture.get();
 
                 Preview preview = new Preview.Builder().build();
                 preview.setSurfaceProvider(previewView.getSurfaceProvider());
@@ -527,6 +531,7 @@ public class MainActivity extends BaseActivity implements
             String targetName = adminInfo.getName();
             String targetUserId = adminInfo.getUserId();
 
+            guardianMeetingCommand = false;
             isCalledLaunched = true;
 
             robot.startTelepresence(targetName, targetUserId, com.robotemi.sdk.constants.Platform.MOBILE);
@@ -543,6 +548,25 @@ public class MainActivity extends BaseActivity implements
         }
 
 
+    }
+
+    private boolean startGuardianMeeting() {
+        Robot robot = Robot.getInstance();
+        UserInfo adminInfo = robot.getAdminInfo();
+
+        if (adminInfo != null) {
+            guardianMeetingCommand = true;
+            isCalledLaunched = true;
+            robot.startTelepresence(
+                    adminInfo.getName(),
+                    adminInfo.getUserId(),
+                    com.robotemi.sdk.constants.Platform.MOBILE
+            );
+            return true;
+        }
+
+        Log.e("CALL", "Guardian information not found");
+        return false;
     }
 
     private void pollCommand() {
@@ -601,12 +625,16 @@ public class MainActivity extends BaseActivity implements
 
         switch (activeCommandName) {
             case "GO_TO_USER":
+                if (cameraProvider != null) {
+                    cameraProvider.unbindAll();
+                }
+
                 if (location.isEmpty()) location = "거실";
                 startNavigation(location, "MOVING_TO_USER");
                 break;
             case "CHECK_USER":
                 robotState = "CHECKING_USER";
-                singleCheckRequested = true;
+//                singleCheckRequested = true;
                 commandStatus = "RUNNING";
                 updateStatusText();
                 postRobotStatus();
@@ -634,6 +662,21 @@ public class MainActivity extends BaseActivity implements
                 if (!callGuardian()) {
                     failActiveCommand("Guardian information not found");
                 }
+                break;
+            case "MEET_GUARDIAN":
+                stopLocalWork();
+                robot.speak(TtsRequest.create(
+                        "보호자와 영상통화를 연결하겠습니다. 잠시만 기다려주세요.",
+                        false));
+                robotState = "MEETING_GUARDIAN";
+                commandStatus = "RUNNING";
+                updateStatusText();
+                postRobotStatus();
+                new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                    if (!startGuardianMeeting()) {
+                        failActiveCommand("Guardian information not found");
+                    }
+                }, 3000);
                 break;
             case "EMERGENCY_STOP":
                 stopLocalWork();
@@ -701,7 +744,7 @@ public class MainActivity extends BaseActivity implements
         robotState = "READY_FOR_GAME";
         completeActiveCommand(null);
         CareTaskCoordinator.clearBusy(this);
-        CareTaskCoordinator.runPendingPatrolIfAny(this);
+        CareTaskCoordinator.runNextPendingTask(this);
     }
 
     private void stopLocalWork() {
@@ -819,11 +862,15 @@ public class MainActivity extends BaseActivity implements
         if (OnGoToLocationStatusChangedListener.COMPLETE.equals(status)) {
             if ("GO_TO_USER".equals(activeCommandName)) {
                 robotState = "CHECKING_USER";
-                singleCheckRequested = true;
-                commandStatus = "RUNNING";
+//                singleCheckRequested = true;
+                completeActiveCommand(null);
+                returnToStartScreen();
+                return;
             } else if ("RETURN_TO_BASE".equals(activeCommandName)) {
                 robotState = "IDLE_AT_BASE";
                 completeActiveCommand(null);
+                returnToStartScreen();
+                return;
             }
         } else if (OnGoToLocationStatusChangedListener.ABORT.equals(status)) {
             failActiveCommand("Navigation aborted: " + description);
@@ -833,9 +880,21 @@ public class MainActivity extends BaseActivity implements
         postRobotStatus();
     }
 
+    private void returnToStartScreen() {
+        Intent intent = new Intent(MainActivity.this, StartActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        startActivity(intent);
+
+        finish();
+    }
+
     @Override
     protected void onResume() {
         super.onResume();
+        Log.d("LIFECYCLE", "onResume");
+        Log.d("CALL_TEST",
+                "onResume 호출됨, isCalledLaunched="
+                        + isCalledLaunched);
 
         // 영상통화 후 우리 앱으로 돌아온 경우
         if (isCalledLaunched) {
@@ -844,7 +903,8 @@ public class MainActivity extends BaseActivity implements
 
             // 다음 통화를 위해 초기화
             isCalledLaunched = false;
-            robotState = "RETURNING_TO_BASE";
+            robotState = guardianMeetingCommand ? "IDLE_AT_BASE" : "RETURNING_TO_BASE";
+            guardianMeetingCommand = false;
             commandStatus = "COMPLETED";
             completeActiveCommand(null);
 

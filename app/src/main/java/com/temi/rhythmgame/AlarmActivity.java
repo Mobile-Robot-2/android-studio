@@ -21,6 +21,10 @@ public class AlarmActivity extends BaseActivity {
     private TextView tvTimer;
     private RobotStatusHeartbeat heartbeat;
 
+    // 명시적 종료(타이머 만료/닫기)로 busy 해제·배출을 이미 마쳤는지.
+    // true 면 onDestroy 안전망이 busy 를 다시 건드리지 않는다(배출된 작업의 busy 보호).
+    private boolean taskCompleted = false;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -72,6 +76,9 @@ public class AlarmActivity extends BaseActivity {
                 robot.speak(TtsRequest.create("응답이 확인되지 않아 알람을 종료하고 대기 장소로 복귀합니다.", false));
                 robot.goTo("home base");
                 heartbeat.update("RETURNING_TO_BASE", "home base");
+                taskCompleted = true;
+                CareTaskCoordinator.clearBusy(AlarmActivity.this);
+                CareTaskCoordinator.runNextPendingTask(AlarmActivity.this);
                 finish();
             }
         }.start();
@@ -84,6 +91,10 @@ public class AlarmActivity extends BaseActivity {
             if (countDownTimer != null) {
                 countDownTimer.cancel();
             }
+
+            taskCompleted = true;
+            CareTaskCoordinator.clearBusy(AlarmActivity.this);
+            CareTaskCoordinator.runNextPendingTask(AlarmActivity.this);
 
             Intent intent = new Intent(AlarmActivity.this, StartActivity.class);
             startActivity(intent);
@@ -110,6 +121,12 @@ public class AlarmActivity extends BaseActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        // 명시적 종료를 거치지 못하고 파괴된 경우에만 안전망으로 busy 해제 + 대기 작업 배출
+        // (startGameAlarm 이 launch 직전 busy 를 걸어두므로, 안 풀면 다음 작업이 막힌다)
+        if (!taskCompleted) {
+            CareTaskCoordinator.clearBusy(this);
+            CareTaskCoordinator.runNextPendingTask(this);
+        }
         if (robot != null) {
             robot.setTrackUserOn(false);
         }

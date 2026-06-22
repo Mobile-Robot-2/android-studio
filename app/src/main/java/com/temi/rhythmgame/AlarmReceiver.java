@@ -11,13 +11,9 @@ public class AlarmReceiver extends BroadcastReceiver {
     public void onReceive(Context context, Intent intent) {
         Log.d("AlarmReceiver", "알람 신호 수신! 테미 화면을 깨웁니다.");
 
-        // 신호를 받자마자 AlarmActivity(우리가 곧 만들 알람 화면)를 실행할 준비
-        Intent alarmIntent = new Intent(context, AlarmActivity.class);
-
-        // 백그라운드(Service나 Receiver)에서 화면(Activity)을 띄우려면 이 플래그가 무조건 필요합니다.
-        alarmIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-
-        // 알람 화면 켜기!
-        context.startActivity(alarmIntent);
+        // 직접 startActivity 하지 않고 조정자를 거친다.
+        // 로봇이 순찰/복약 등으로 바쁘면 게임 알람은 pending 으로 미뤄졌다가
+        // 그 작업이 끝난 뒤 실행된다. (겹침 방지)
+        CareTaskCoordinator.requestGame(context);
     }
 }
