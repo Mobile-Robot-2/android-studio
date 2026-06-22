@@ -122,6 +122,7 @@ public class MainActivity extends BaseActivity implements
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        Log.d("LIFECYCLE", "onCreate");
 
         sdf.setTimeZone(java.util.TimeZone.getTimeZone("Asia/Seoul"));
 
@@ -217,6 +218,7 @@ public class MainActivity extends BaseActivity implements
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        Log.d("LIFECYCLE", "onDestroy");
         if (videoView != null && videoView.isPlaying()) videoView.stopPlayback();
         if (cameraExecutor != null) {
             cameraExecutor.shutdown();
@@ -867,6 +869,10 @@ public class MainActivity extends BaseActivity implements
     @Override
     protected void onResume() {
         super.onResume();
+        Log.d("LIFECYCLE", "onResume");
+        Log.d("CALL_TEST",
+                "onResume 호출됨, isCalledLaunched="
+                        + isCalledLaunched);
 
         // 영상통화 후 우리 앱으로 돌아온 경우
         if (isCalledLaunched) {
