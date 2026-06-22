@@ -82,6 +82,7 @@ public class PatrolActivity extends BaseActivity
     private static final int SEND_INTERVAL_MS = 500;   // 프레임 전송 간격
     private static final int HEAD_DOWN_ANGLE = -25;    // 고개 최저 (바닥 감지용)
     private static final int HEAD_RESET_ANGLE = 10;    // 복귀 시 기본 시선
+    private static final long RETURN_TIMEOUT_MS = 90_000; // 홈베이스 복귀 도착 대기 한도
 
     private Robot robot;
     private PreviewView previewView;
@@ -99,8 +100,17 @@ public class PatrolActivity extends BaseActivity
     private boolean isCallLaunched = false;
     private long lastSendTime = 0;
 
+    // 홈베이스 복귀 단계 추적: 복귀를 "시작"한 순간이 아니라 "도착"한 순간 순찰을 끝낸다.
+    private boolean returningToBase = false;
+    private boolean finishCalled = false;
+
     private final Runnable startObservationRunnable = this::startObservation;
     private final Runnable endObservationRunnable = this::endObservation;
+    // 도착 콜백이 끝내 오지 않는 경우(도킹 실패 등) 대비한 안전 종료
+    private final Runnable returnTimeoutRunnable = () -> {
+        Log.w(TAG, "홈베이스 복귀 타임아웃 - 순찰 강제 종료");
+        safeFinish();
+    };
 
     // ───────────────── 생명주기 ──────────────────────────────────────────
 
@@ -167,6 +177,7 @@ public class PatrolActivity extends BaseActivity
         CareTaskCoordinator.runNextPendingTask(getApplicationContext());
         handler.removeCallbacks(startObservationRunnable);
         handler.removeCallbacks(endObservationRunnable);
+        handler.removeCallbacks(returnTimeoutRunnable);
         if (robot != null) {
             robot.removeOnGoToLocationStatusChangedListener(this);
             robot.setTrackUserOn(false);
@@ -205,6 +216,21 @@ public class PatrolActivity extends BaseActivity
                                             @NonNull String status,
                                             int descriptionId,
                                             @NonNull String description) {
+        // 홈베이스 복귀 단계: 도착(또는 실패)해야 비로소 순찰을 끝낸다.
+        if (returningToBase) {
+            if (!HOME_BASE.equals(location)) {
+                return;
+            }
+            if (OnGoToLocationStatusChangedListener.COMPLETE.equals(status)) {
+                Log.d(TAG, "홈베이스 도착 - 순찰 종료");
+                safeFinish();
+            } else if (OnGoToLocationStatusChangedListener.ABORT.equals(status)) {
+                Log.w(TAG, "홈베이스 복귀 실패(abort) - 순찰 종료");
+                safeFinish();
+            }
+            return;
+        }
+
         // 현재 목표 지점에 대한 콜백만 처리
         if (currentTarget == null || !currentTarget.equals(location)) {
             return;
@@ -277,17 +303,38 @@ public class PatrolActivity extends BaseActivity
     }
 
     private void returnToBaseAndFinish() {
+        if (returningToBase) {
+            return; // 이미 복귀 중 - 중복 호출 무시
+        }
         // 다음 순찰에 이전 낙상 상태가 남아 도착 즉시 통화되는 것을 막기 위해
         // 로컬 플래그와 서버의 전역 FallDetector 상태를 모두 초기화한다.
         observing = false;
         emergencyTriggered.set(false);
         resetFallDetectorOnServer();
 
+        // 복귀를 "시작"이 아니라 홈베이스 "도착" 시점에 끝낸다.
+        // 도착 전까지 PATROL_IN_PROGRESS 가 유지되어, 복귀 이동 중에 다음 주기 알람이
+        // 새 순찰을 시작해버리는 문제를 막는다. (도착/실패는 onGoToLocationStatusChanged 에서 처리)
+        returningToBase = true;
+        currentTarget = HOME_BASE;
+
         if (robot != null) {
             robot.setTrackUserOn(false);
             robot.tiltAngle(HEAD_RESET_ANGLE);
             robot.goTo(HOME_BASE);
         }
+
+        handler.removeCallbacks(returnTimeoutRunnable);
+        handler.postDelayed(returnTimeoutRunnable, RETURN_TIMEOUT_MS);
+    }
+
+    /** 홈베이스 도착(또는 타임아웃) 시 1회만 실제 종료. */
+    private void safeFinish() {
+        if (finishCalled) {
+            return;
+        }
+        finishCalled = true;
+        handler.removeCallbacks(returnTimeoutRunnable);
         finish();
     }
 
