@@ -46,6 +46,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import okhttp3.Call;
 import okhttp3.Callback;
@@ -85,11 +86,13 @@ public class PatrolActivity extends BaseActivity
     private static final long RETURN_TIMEOUT_MS = 90_000; // 홈베이스 복귀 도착 대기 한도
     private static final int MAX_LEG_RETRIES = 2;       // 지점 이동 abort 시 재시도 횟수
     private static final long RETRY_DELAY_MS = 2_000;   // 재시도 전 대기(장애물/측위 회복 시간)
+    private static final int FALL_CONFIRM_THRESHOLD = 2; // 연속 감지 횟수
 
     private Robot robot;
     private PreviewView previewView;
     private TextView textStatus;
     private RobotStatusHeartbeat statusHeartbeat;
+    private ProcessCameraProvider cameraProvider;
     private ExecutorService cameraExecutor;
     private final OkHttpClient client = new OkHttpClient();
     private final Handler handler = new Handler(Looper.getMainLooper());
@@ -99,8 +102,11 @@ public class PatrolActivity extends BaseActivity
 
     private volatile boolean observing = false;
     private final AtomicBoolean emergencyTriggered = new AtomicBoolean(false);
+    private final AtomicBoolean frameRequestInFlight = new AtomicBoolean(false);
+    private final AtomicInteger observationSessionId = new AtomicInteger(0);
     private boolean isCallLaunched = false;
     private long lastSendTime = 0;
+    private int fallConfirmCount = 0;
 
     // 홈베이스 복귀 단계 추적: 복귀를 "시작"한 순간이 아니라 "도착"한 순간 순찰을 끝낸다.
     private boolean returningToBase = false;
@@ -108,7 +114,8 @@ public class PatrolActivity extends BaseActivity
 
     private int legRetryCount = 0; // 현재 지점 이동 재시도 누적 횟수
 
-    private final Runnable startObservationRunnable = this::startObservation;
+    private final Runnable startObservationRunnable =
+            () -> startObservation(observationSessionId.get());
     private final Runnable endObservationRunnable = this::endObservation;
     // 도착 콜백이 끝내 오지 않는 경우(도킹 실패 등) 대비한 안전 종료
     private final Runnable returnTimeoutRunnable = () -> {
@@ -183,6 +190,10 @@ public class PatrolActivity extends BaseActivity
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        observing = false;
+        observationSessionId.incrementAndGet();
+        frameRequestInFlight.set(false);
+        fallConfirmCount = 0;
         // 순찰 종료 → 진행 플래그 해제 (다음 주기 알람이 정상적으로 순찰을 띄울 수 있게)
         CareTaskCoordinator.setPatrolInProgress(false);
         // 순찰 도중 들어와 대기 중이던 복약/게임 작업이 있으면 이제 하나 실행
@@ -195,6 +206,7 @@ public class PatrolActivity extends BaseActivity
             robot.removeOnGoToLocationStatusChangedListener(this);
             robot.setTrackUserOn(false);
         }
+        stopCamera();
         if (statusHeartbeat != null) {
             statusHeartbeat.stop();
         }
@@ -282,22 +294,31 @@ public class PatrolActivity extends BaseActivity
         //  FALL_CONFIRMED 상태가 남아, 사람이 없는데도 첫 프레임에서 즉시
         //  fall_detected=true 가 반환되는 것을 막는 안전망.)
         // HEAD_SETTLE_MS(1.5초) 뒤 관찰이 시작되므로 비동기 reset 이 적용될 시간이 확보된다.
+        observing = false;
         emergencyTriggered.set(false);
-        resetFallDetectorOnServer();
+        frameRequestInFlight.set(false);
+        fallConfirmCount = 0;
+        int sessionId = observationSessionId.incrementAndGet();
 
         // 시선 추적을 꺼야 수동으로 고개를 숙일 수 있음
         robot.setTrackUserOn(false);
         robot.tiltAngle(HEAD_DOWN_ANGLE);
         robot.speak(TtsRequest.create("어르신 괜찮으신가요?", false));
 
-        // 고개가 충분히 내려간 뒤 감시 시작
+        // 서버 초기화가 끝난 뒤 고개가 충분히 내려가면 감시를 시작한다.
         handler.removeCallbacks(startObservationRunnable);
-        handler.postDelayed(startObservationRunnable, HEAD_SETTLE_MS);
+        resetFallDetectorOnServer(() -> handler.postDelayed(() -> startObservation(sessionId), HEAD_SETTLE_MS));
     }
 
     /** 현재 지점에서 OBSERVE_MS 동안 낙상을 감시한다. */
-    private void startObservation() {
+    private void startObservation(int sessionId) {
+        if (sessionId != observationSessionId.get() || returningToBase || finishCalled) {
+            return;
+        }
         emergencyTriggered.set(false);
+        frameRequestInFlight.set(false);
+        fallConfirmCount = 0;
+        lastSendTime = 0;
         observing = true;
         updatePatrolStatus("PATROL_OBSERVING", currentTarget);
         setStatus(currentTarget + " 낙상 감시 중...");
@@ -313,6 +334,9 @@ public class PatrolActivity extends BaseActivity
             return; // 이미 낙상 처리로 종료됨
         }
         observing = false;
+        observationSessionId.incrementAndGet();
+        frameRequestInFlight.set(false);
+        fallConfirmCount = 0;
         updatePatrolStatus("PATROL_CLEAR", currentTarget);
         Log.d(TAG, "이상 없음: " + currentTarget);
         locationIndex++;
@@ -334,7 +358,10 @@ public class PatrolActivity extends BaseActivity
         // 다음 순찰에 이전 낙상 상태가 남아 도착 즉시 통화되는 것을 막기 위해
         // 로컬 플래그와 서버의 전역 FallDetector 상태를 모두 초기화한다.
         observing = false;
+        observationSessionId.incrementAndGet();
         emergencyTriggered.set(false);
+        frameRequestInFlight.set(false);
+        fallConfirmCount = 0;
         resetFallDetectorOnServer();
 
         // 복귀를 "시작"이 아니라 홈베이스 "도착" 시점에 끝낸다.
@@ -369,6 +396,10 @@ public class PatrolActivity extends BaseActivity
      * 스스로 회복되지 않음) 다음 순찰 도착 즉시 fall_detected=true 가 반환되는 버그를 막는다.
      */
     private void resetFallDetectorOnServer() {
+        resetFallDetectorOnServer(null);
+    }
+
+    private void resetFallDetectorOnServer(Runnable afterReset) {
         RequestBody body = RequestBody.create(MediaType.parse("text/plain"), "");
         Request request = new Request.Builder()
                 .url(SERVER_URL + "/reset_fall")
@@ -378,14 +409,22 @@ public class PatrolActivity extends BaseActivity
             @Override
             public void onFailure(@NonNull Call call, @NonNull IOException e) {
                 Log.e(TAG, "낙상 상태 초기화 실패: " + e.getMessage());
+                runAfterReset(afterReset);
             }
 
             @Override
             public void onResponse(@NonNull Call call, @NonNull Response response) {
                 Log.d(TAG, "서버 낙상 상태 초기화 완료");
                 response.close();
+                runAfterReset(afterReset);
             }
         });
+    }
+
+    private void runAfterReset(Runnable afterReset) {
+        if (afterReset != null) {
+            handler.post(afterReset);
+        }
     }
 
     // ───────────────── 낙상 처리 ─────────────────────────────────────────
@@ -393,10 +432,14 @@ public class PatrolActivity extends BaseActivity
     /** 낙상 감지 시: 그 자리에서 보호자에게 영상통화. */
     private void handleFallDetected() {
         observing = false;
+        observationSessionId.incrementAndGet();
+        frameRequestInFlight.set(false);
+        fallConfirmCount = 0;
         handler.removeCallbacks(endObservationRunnable);
         updatePatrolStatus("FALL_DETECTED", currentTarget);
         setStatus("낙상 감지! 보호자에게 연락합니다.");
         Toast.makeText(this, "낙상 감지!", Toast.LENGTH_SHORT).show();
+        stopCamera();
         callGuardian();
     }
 
@@ -434,6 +477,7 @@ public class PatrolActivity extends BaseActivity
         cameraProviderFuture.addListener(() -> {
             try {
                 ProcessCameraProvider cameraProvider = cameraProviderFuture.get();
+                PatrolActivity.this.cameraProvider = cameraProvider;
 
                 Preview preview = new Preview.Builder().build();
                 preview.setSurfaceProvider(previewView.getSurfaceProvider());
@@ -454,6 +498,12 @@ public class PatrolActivity extends BaseActivity
                 Log.e(TAG, "사용 가능한 카메라 없음");
             }
         }, ContextCompat.getMainExecutor(this));
+    }
+
+    private void stopCamera() {
+        if (cameraProvider != null) {
+            cameraProvider.unbindAll();
+        }
     }
 
     private CameraSelector getAvailableCameraSelector(ProcessCameraProvider cameraProvider)
@@ -477,9 +527,15 @@ public class PatrolActivity extends BaseActivity
             imageProxy.close();
             return;
         }
+        if (!frameRequestInFlight.compareAndSet(false, true)) {
+            imageProxy.close();
+            return;
+        }
         lastSendTime = System.currentTimeMillis();
 
         try {
+            int sessionId = observationSessionId.get();
+            String frameLocation = currentTarget;
             byte[] nv21 = imageProxyToNV21(imageProxy);
             YuvImage yuvImage = new YuvImage(
                     nv21, ImageFormat.NV21,
@@ -489,19 +545,22 @@ public class PatrolActivity extends BaseActivity
             yuvImage.compressToJpeg(
                     new Rect(0, 0, imageProxy.getWidth(), imageProxy.getHeight()), 60, out);
 
-            sendImageToServer(out.toByteArray());
+            sendImageToServer(out.toByteArray(), sessionId, frameLocation);
         } catch (Exception e) {
+            frameRequestInFlight.set(false);
             Log.e(TAG, "이미지 변환 실패: " + e.getMessage());
         } finally {
             imageProxy.close();
         }
     }
 
-    private void sendImageToServer(byte[] jpegBytes) {
+    private void sendImageToServer(byte[] jpegBytes, int sessionId, String frameLocation) {
         RequestBody imageBody = RequestBody.create(MediaType.parse("image/jpeg"), jpegBytes);
 
         MultipartBody requestBody = new MultipartBody.Builder()
                 .setType(MultipartBody.FORM)
+                .addFormDataPart("session_id", String.valueOf(sessionId))
+                .addFormDataPart("location", frameLocation != null ? frameLocation : "")
                 .addFormDataPart("image", "frame.jpg", imageBody)
                 .build();
 
@@ -514,26 +573,57 @@ public class PatrolActivity extends BaseActivity
         client.newCall(request).enqueue(new Callback() {
             @Override
             public void onFailure(@NonNull Call call, @NonNull IOException e) {
+                frameRequestInFlight.set(false);
                 Log.e(TAG, "서버 전송 실패: " + e.getMessage());
             }
 
             @Override
             public void onResponse(@NonNull Call call, @NonNull Response response) throws IOException {
-                if (response.body() == null) {
-                    return;
-                }
-                String result = response.body().string();
                 try {
+                    if (response.body() == null) {
+                        return;
+                    }
+                    String result = response.body().string();
                     JSONObject json = new JSONObject(result);
                     boolean fallDetected = json.optBoolean("fall_detected", false);
+                    String fallStatus = json.optString("fall_status", "UNKNOWN");
+                    double confidence = json.optDouble("confidence", -1);
 
-                    // 감시 중 + 낙상 + 아직 미처리일 때만 1회 처리 (중복 호출 방지)
-                    if (observing && fallDetected && emergencyTriggered.compareAndSet(false, true)) {
-                        Log.d(TAG, "낙상 감지 at " + currentTarget);
+                    boolean staleResponse =
+                            sessionId != observationSessionId.get()
+                                    || !observing
+                                    || frameLocation == null
+                                    || !frameLocation.equals(currentTarget);
+                    if (staleResponse) {
+                        Log.d(TAG, "오래된 낙상 응답 무시: frameLocation=" + frameLocation
+                                + ", currentTarget=" + currentTarget
+                                + ", session=" + sessionId
+                                + "/" + observationSessionId.get());
+                        return;
+                    }
+
+                    if (fallDetected) {
+                        fallConfirmCount++;
+                    } else {
+                        fallConfirmCount = 0;
+                    }
+                    Log.d(TAG, "낙상 응답: location=" + frameLocation
+                            + ", detected=" + fallDetected
+                            + ", status=" + fallStatus
+                            + ", confidence=" + confidence
+                            + ", confirm=" + fallConfirmCount + "/" + FALL_CONFIRM_THRESHOLD);
+
+                    // 한 프레임 오탐을 줄이기 위해 같은 관찰 세션에서 연속 감지될 때만 확정한다.
+                    if (fallConfirmCount >= FALL_CONFIRM_THRESHOLD
+                            && emergencyTriggered.compareAndSet(false, true)) {
+                        Log.d(TAG, "낙상 감지 at " + frameLocation);
                         runOnUiThread(PatrolActivity.this::handleFallDetected);
                     }
                 } catch (Exception e) {
                     Log.e(TAG, "JSON 파싱 실패: " + e.getMessage());
+                } finally {
+                    response.close();
+                    frameRequestInFlight.set(false);
                 }
             }
         });
