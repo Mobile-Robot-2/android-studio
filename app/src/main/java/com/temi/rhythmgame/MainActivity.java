@@ -100,6 +100,7 @@ public class MainActivity extends BaseActivity implements
     private String commandStatus = null;
     private String lastError = null;
     private JSONObject statusResult = null;
+    private ProcessCameraProvider cameraProvider;
 
     private final Runnable commandPollRunnable = new Runnable() {
         @Override
@@ -309,7 +310,7 @@ public class MainActivity extends BaseActivity implements
 
         cameraProviderFuture.addListener(() -> {
             try {
-                ProcessCameraProvider cameraProvider = cameraProviderFuture.get();
+                cameraProvider = cameraProviderFuture.get();
 
                 Preview preview = new Preview.Builder().build();
                 preview.setSurfaceProvider(previewView.getSurfaceProvider());
@@ -624,6 +625,10 @@ public class MainActivity extends BaseActivity implements
 
         switch (activeCommandName) {
             case "GO_TO_USER":
+                if (cameraProvider != null) {
+                    cameraProvider.unbindAll();
+                }
+
                 if (location.isEmpty()) location = "거실";
                 startNavigation(location, "MOVING_TO_USER");
                 break;
@@ -650,6 +655,13 @@ public class MainActivity extends BaseActivity implements
                 break;
             case "CALL_GUARDIAN":
                 stopLocalWork();
+                robot.speak(TtsRequest.create(
+                                "보호자와 영상통화를 연결하겠습니다. 잠시만 기다려주세요.",
+                                false));
+                new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                    callGuardian();
+                }, 5000);
+
                 robotState = "CALLING_GUARDIAN";
                 commandStatus = "RUNNING";
                 updateStatusText();
@@ -874,6 +886,7 @@ public class MainActivity extends BaseActivity implements
         Intent intent = new Intent(MainActivity.this, StartActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
         startActivity(intent);
+
         finish();
     }
 
