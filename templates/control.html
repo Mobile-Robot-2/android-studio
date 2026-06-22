@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Temi 돌봄 제어</title>
   <link rel="stylesheet" href="/static/control.css">
-  <script src="/static/control.js" defer></script>
+  <script src="/static/control.js?v=20260622-3" defer></script>
 </head>
 <body>
   <header class="topbar">
@@ -42,26 +42,13 @@
 
       <div class="button-grid">
         <button data-command="GO_TO_USER" type="button">노인에게 이동</button>
-        <button data-command="CHECK_USER" type="button">상태 확인</button>
-        <button data-command="CALL_GUARDIAN" type="button">보호자 영상통화</button>
+        <button data-command="MEET_GUARDIAN" type="button">보호자 영상통화</button>
         <button data-command="START_PATROL" type="button">순찰 시작</button>
-        <button data-command="START_RHYTHM_GAME" type="button">리듬게임 시작</button>
-        <button data-command="STOP_GAME" class="secondary" type="button">게임 중지</button>
         <button data-command="RETURN_TO_BASE" class="secondary" type="button">베이스로 복귀</button>
         <button data-command="EMERGENCY_STOP" class="danger" type="button">긴급 중지</button>
       </div>
 
       <p id="commandMessage" role="status"></p>
-    </section>
-
-    <section class="status-band" aria-labelledby="careHeading">
-      <h2 id="careHeading">현재 상태 확인</h2>
-      <div class="status-grid">
-        <div><span>사람 감지</span><strong id="personDetected">-</strong></div>
-        <div><span>낙상 상태</span><strong id="fallStatus">-</strong></div>
-        <div><span>낙상 신뢰도</span><strong id="fallConfidence">-</strong></div>
-        <div><span>남은 시간</span><strong id="remainingTime">-</strong></div>
-      </div>
     </section>
 
     <section class="controls" aria-labelledby="medicationHeading">
@@ -82,24 +69,6 @@
 
       <h3>복약 기록</h3>
       <div id="medicationLogs" class="log-list">기록 없음</div>
-    </section>
-
-    <section class="status-band" aria-labelledby="gameHeading">
-      <h2 id="gameHeading">리듬게임</h2>
-      <div class="counts">
-        <div><span>왼손 들기</span><strong id="leftCount">0</strong></div>
-        <div><span>오른손 들기</span><strong id="rightCount">0</strong></div>
-        <div><span>팔 벌리기</span><strong id="armsOpenCount">0</strong></div>
-        <div><span>박수</span><strong id="clapCount">0</strong></div>
-      </div>
-      <div class="result-row">
-        <span>현재 동작</span>
-        <strong id="currentActions">없음</strong>
-      </div>
-      <div class="result-row">
-        <span>게임 성공</span>
-        <strong id="gameClear">-</strong>
-      </div>
     </section>
 
     <section class="error-band" aria-labelledby="errorHeading">

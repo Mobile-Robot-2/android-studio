@@ -8,16 +8,6 @@ const elements = {
   activeCommandId: document.getElementById("activeCommandId"),
   lastCompletedCommandId: document.getElementById("lastCompletedCommandId"),
   lastUpdated: document.getElementById("lastUpdated"),
-  personDetected: document.getElementById("personDetected"),
-  fallStatus: document.getElementById("fallStatus"),
-  fallConfidence: document.getElementById("fallConfidence"),
-  remainingTime: document.getElementById("remainingTime"),
-  leftCount: document.getElementById("leftCount"),
-  rightCount: document.getElementById("rightCount"),
-  armsOpenCount: document.getElementById("armsOpenCount"),
-  clapCount: document.getElementById("clapCount"),
-  currentActions: document.getElementById("currentActions"),
-  gameClear: document.getElementById("gameClear"),
   lastError: document.getElementById("lastError"),
   commandMessage: document.getElementById("commandMessage"),
   userLocation: document.getElementById("userLocation"),
@@ -32,6 +22,7 @@ const busyStates = new Set([
   "MOVING_TO_USER",
   "RETURNING_TO_BASE",
   "CALLING_GUARDIAN",
+  "MEETING_GUARDIAN",
   "PATROLLING",
   "PATROL_MOVING",
   "PATROL_CHECKING",
@@ -80,42 +71,14 @@ function updateRobotView(payload) {
   elements.lastCompletedCommandId.textContent = status.last_completed_command_id || "-";
   elements.lastError.textContent = status.last_error || "없음";
 
-  const result = status.status_result || {};
-  if (Object.keys(result).length > 0) {
-    elements.personDetected.textContent = result.detected ? "감지됨" : "감지 안 됨";
-    elements.fallStatus.textContent = result.fall_status || "-";
-    elements.fallConfidence.textContent =
-      result.fall_confidence === undefined ? "-" : result.fall_confidence;
-  }
-
   updateButtonAvailability();
-}
-
-function updateGameView(payload) {
-  const counts = payload.counts || {};
-  elements.leftCount.textContent = counts.LEFT_HAND_UP || 0;
-  elements.rightCount.textContent = counts.RIGHT_HAND_UP || 0;
-  elements.armsOpenCount.textContent = counts.ARMS_OPEN || 0;
-  elements.clapCount.textContent = counts.CLAP || 0;
-  elements.remainingTime.textContent =
-    payload.remaining_time === undefined ? "-" : `${payload.remaining_time}초`;
-  elements.currentActions.textContent =
-    payload.current_actions && payload.current_actions.length
-      ? payload.current_actions.join(", ")
-      : "없음";
-  elements.gameClear.textContent = payload.clear ? "성공" : "진행 중";
-
-  if (payload.fall_status) {
-    elements.fallStatus.textContent = payload.fall_status;
-    elements.fallConfidence.textContent = payload.fall_confidence;
-  }
 }
 
 function updateButtonAvailability() {
   document.querySelectorAll("[data-command]").forEach((button) => {
     const command = button.dataset.command;
     const isSafetyCommand =
-      command === "EMERGENCY_STOP" || command === "STOP_GAME";
+      command === "EMERGENCY_STOP";
     const isMovementCommand =
       command === "GO_TO_USER" || command === "RETURN_TO_BASE";
 
@@ -132,10 +95,9 @@ function updateButtonAvailability() {
 
 async function refreshAll() {
   try {
-    const [health, robot, game, medication] = await Promise.all([
+    const [health, robot, medication] = await Promise.all([
       requestJson("/health"),
       requestJson("/robot/status"),
-      requestJson("/state"),
       requestJson("/medication/logs?robot_id=temi-01"),
     ]);
 
@@ -146,7 +108,6 @@ async function refreshAll() {
       health.status === "ok" ? "is-good" : "is-warning",
     );
     updateRobotView(robot);
-    updateGameView(game);
     updateMedicationLogs(medication.logs || []);
     elements.lastUpdated.textContent =
       `마지막 갱신 ${new Date().toLocaleTimeString()}`;
