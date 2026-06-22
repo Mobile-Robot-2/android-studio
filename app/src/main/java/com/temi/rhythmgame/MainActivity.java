@@ -851,10 +851,14 @@ public class MainActivity extends BaseActivity implements
             if ("GO_TO_USER".equals(activeCommandName)) {
                 robotState = "CHECKING_USER";
 //                singleCheckRequested = true;
-                commandStatus = "RUNNING";
+                completeActiveCommand(null);
+                returnToStartScreen();
+                return;
             } else if ("RETURN_TO_BASE".equals(activeCommandName)) {
                 robotState = "IDLE_AT_BASE";
                 completeActiveCommand(null);
+                returnToStartScreen();
+                return;
             }
         } else if (OnGoToLocationStatusChangedListener.ABORT.equals(status)) {
             failActiveCommand("Navigation aborted: " + description);
@@ -862,6 +866,13 @@ public class MainActivity extends BaseActivity implements
 
         updateStatusText();
         postRobotStatus();
+    }
+
+    private void returnToStartScreen() {
+        Intent intent = new Intent(MainActivity.this, StartActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        startActivity(intent);
+        finish();
     }
 
     @Override
