@@ -1,0 +1,8 @@
+# 데이터·산출물은 커밋하지 않음 (용량 큼)
+.venv/
+urfd/
+landmarks/
+*.pt
+*.npz
+__pycache__/
+*.pyc
