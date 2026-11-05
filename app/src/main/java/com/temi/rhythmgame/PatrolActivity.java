@@ -63,8 +63,8 @@ import okhttp3.Response;
 /**
  * PatrolActivity - 순찰 동작
  *
- * 시퀀스: 거실 이동 → 고개 최저(-25˚) → 10초 낙상 감시
- *        → 주방 이동 → 고개 최저 → 10초 낙상 감시
+ * 시퀀스: 거실 이동 → 10초 낙상 감시
+ *        → 주방 이동 → 10초 낙상 감시
  *        → 이상 없으면 home base 복귀.
  *
  * 어느 지점에서든 낙상이 감지되면 그 자리에서 보호자에게 영상통화를 걸고,
@@ -82,19 +82,12 @@ public class PatrolActivity extends BaseActivity
     private static final String HOME_BASE = "home base";
 
     private static final long OBSERVE_MS = 10_000;     // 지점별 낙상 관찰 시간
-    private static final long HEAD_SETTLE_MS = 1_500;  // 고개가 내려갈 최소 시간
     private static final int SEND_INTERVAL_MS = 500;   // 프레임 전송 간격
-    private static final int HEAD_DOWN_ANGLE = -25;    // 고개 최저 (바닥 감지용)
     private static final int HEAD_RESET_ANGLE = 10;    // 복귀 시 기본 시선
     private static final long RETURN_TIMEOUT_MS = 90_000; // 홈베이스 복귀 도착 대기 한도
     private static final int MAX_LEG_RETRIES = 2;       // 지점 이동 abort 시 재시도 횟수
     private static final long RETRY_DELAY_MS = 2_000;   // 재시도 전 대기(장애물/측위 회복 시간)
     private static final int FALL_CONFIRM_THRESHOLD = 2; // 연속 감지 횟수
-
-    private static final long FALL_CHECK_HEAD_SETTLE_MS = 2_500;
-    private static final long HEAD_TILT_RETRY_DELAY_MS = 500;
-    private static final int HEAD_TILT_RETRY_COUNT = 3;
-    private static final int FALL_CHECK_HEAD_ANGLE = -25;
 
     private Robot robot;
     private PreviewView previewView;
@@ -124,8 +117,6 @@ public class PatrolActivity extends BaseActivity
 
     private int legRetryCount = 0; // 현재 지점 이동 재시도 누적 횟수
 
-    private final Runnable startObservationRunnable =
-            () -> startObservation(observationSessionId.get(), currentObservationSessionToken);
     private final Runnable endObservationRunnable = this::endObservation;
     // 도착 콜백이 끝내 오지 않는 경우(도킹 실패 등) 대비한 안전 종료
     private final Runnable returnTimeoutRunnable = () -> {
@@ -210,7 +201,6 @@ public class PatrolActivity extends BaseActivity
         CareTaskCoordinator.setPatrolInProgress(false);
         // 순찰 도중 들어와 대기 중이던 복약/게임 작업이 있으면 이제 하나 실행
         CareTaskCoordinator.runNextPendingTask(getApplicationContext());
-        handler.removeCallbacks(startObservationRunnable);
         handler.removeCallbacks(endObservationRunnable);
         handler.removeCallbacks(returnTimeoutRunnable);
         handler.removeCallbacks(retryGoToRunnable);
@@ -296,7 +286,7 @@ public class PatrolActivity extends BaseActivity
         }
     }
 
-    /** 지점 도착: 고개를 최저로 내리고 잠시 뒤 낙상 감시를 시작한다. */
+    /** 지점 도착 후 서버 초기화를 마치면 낙상 감시를 시작한다. */
     private void onArrived() {
         updatePatrolStatus("PATROL_CHECKING", currentTarget);
         setStatus(currentTarget + " 도착 - 상태 확인 중...");
@@ -305,7 +295,6 @@ public class PatrolActivity extends BaseActivity
         // (직전 순찰이 비정상 종료됐거나 종료 시 reset 이 실패해 stale 한
         //  FALL_CONFIRMED 상태가 남아, 사람이 없는데도 첫 프레임에서 즉시
         //  fall_detected=true 가 반환되는 것을 막는 안전망.)
-        // HEAD_SETTLE_MS(1.5초) 뒤 관찰이 시작되므로 비동기 reset 이 적용될 시간이 확보된다.
         observing = false;
         emergencyTriggered.set(false);
         frameRequestInFlight.set(false);
@@ -314,57 +303,16 @@ public class PatrolActivity extends BaseActivity
         String sessionToken = buildObservationSessionToken(sessionId);
         currentObservationSessionToken = sessionToken;
 
-        // 시선 추적을 꺼야 수동으로 고개를 숙일 수 있음
-        requestHeadDownForFallCheck(currentTarget);
         robot.speak(TtsRequest.create("어르신 괜찮으신가요?", false));
 
-        // 서버 초기화가 끝난 뒤 고개가 충분히 내려가면 감시를 시작한다.
-        handler.removeCallbacks(startObservationRunnable);
-        resetFallDetectorOnServer(() -> stabilizeHeadThenStartObservation(sessionId, sessionToken));
+        // 서버 초기화가 끝난 뒤 감시를 시작한다.
+        resetFallDetectorOnServer(() -> startObservation(sessionId, sessionToken));
     }
 
     /** 현재 지점에서 OBSERVE_MS 동안 낙상을 감시한다. */
     private String buildObservationSessionToken(int sessionId) {
         String safeLocation = currentTarget != null ? currentTarget : "unknown";
         return patrolRunId + "_" + safeLocation + "_" + locationIndex + "_" + sessionId;
-    }
-
-    private void requestHeadDownForFallCheck(String location) {
-        if (robot == null) {
-            return;
-        }
-        Log.d(TAG, "고개 내림 요청: location=" + location + ", angle=" + FALL_CHECK_HEAD_ANGLE);
-        robot.setTrackUserOn(false);
-        robot.tiltAngle(FALL_CHECK_HEAD_ANGLE);
-    }
-
-    private void stabilizeHeadThenStartObservation(int sessionId, String sessionToken) {
-        for (int retryIndex = 1; retryIndex <= HEAD_TILT_RETRY_COUNT; retryIndex++) {
-            final int currentRetry = retryIndex;
-            handler.postDelayed(() -> {
-                if (sessionId != observationSessionId.get() || returningToBase || finishCalled) {
-                    return;
-                }
-                Log.d(TAG, "고개 내림 재시도: " + currentRetry + "/" + HEAD_TILT_RETRY_COUNT);
-                requestHeadDownForFallCheck(currentTarget);
-            }, HEAD_TILT_RETRY_DELAY_MS * retryIndex);
-        }
-
-        long startDelayMs = FALL_CHECK_HEAD_SETTLE_MS
-                + (HEAD_TILT_RETRY_DELAY_MS * HEAD_TILT_RETRY_COUNT);
-        handler.postDelayed(() -> {
-            if (sessionId != observationSessionId.get() || returningToBase || finishCalled) {
-                return;
-            }
-            requestHeadDownForFallCheck(currentTarget);
-            handler.postDelayed(() -> {
-                if (sessionId != observationSessionId.get() || returningToBase || finishCalled) {
-                    return;
-                }
-                Log.d(TAG, "고개 안정화 대기 완료, 낙상 감시 시작: " + currentTarget);
-                startObservation(sessionId, sessionToken);
-            }, HEAD_TILT_RETRY_DELAY_MS);
-        }, startDelayMs);
     }
 
     private void startObservation(int sessionId, String sessionToken) {
@@ -374,7 +322,6 @@ public class PatrolActivity extends BaseActivity
                 || finishCalled) {
             return;
         }
-        requestHeadDownForFallCheck(currentTarget);
         emergencyTriggered.set(false);
         frameRequestInFlight.set(false);
         fallConfirmCount = 0;
