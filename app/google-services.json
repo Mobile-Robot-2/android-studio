@@ -1,41 +1,22 @@
 {
   "project_info": {
-    "project_number": "287328495432",
-    "firebase_url": "https://mobile-robot-2-default-rtdb.firebaseio.com",
-    "project_id": "mobile-robot-2",
-    "storage_bucket": "mobile-robot-2.firebasestorage.app"
+    "project_number": "700281889628",
+    "firebase_url": "https://mobile-robot-2-56458-default-rtdb.firebaseio.com",
+    "project_id": "mobile-robot-2-56458",
+    "storage_bucket": "mobile-robot-2-56458.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:287328495432:android:d8e710d09a04b5ec6fb57d",
+        "mobilesdk_app_id": "1:700281889628:android:a4640de759d93c3ab49799",
         "android_client_info": {
-          "package_name": "com.temi.rhythmgame"
+          "package_name": "com.example.temicommunication"
         }
       },
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyBsUa1XRDOkE6siaIpfafeTq_3fyU0Eil8"
-        }
-      ],
-      "services": {
-        "appinvite_service": {
-          "other_platform_oauth_client": []
-        }
-      }
-    },
-    {
-      "client_info": {
-        "mobilesdk_app_id": "1:287328495432:android:414e05f8c09b86f26fb57d",
-        "android_client_info": {
-          "package_name": "com.temi.rhythmgame"
-        }
-      },
-      "oauth_client": [],
-      "api_key": [
-        {
-          "current_key": "AIzaSyBsUa1XRDOkE6siaIpfafeTq_3fyU0Eil8"
+          "current_key": "AIzaSyAd0kvbTsmgBtcvQ8KWcIaLR-Fddc7Mw8U"
         }
       ],
       "services": {
