@@ -3,6 +3,7 @@
 urfd/
 landmarks/
 *.pt
+!tcn_fall.pt
 *.npz
 __pycache__/
 *.pyc
