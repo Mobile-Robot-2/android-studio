@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#000000">
+
+    <androidx.camera.view.PreviewView
+        android:id="@+id/testPreview"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:scaleType="fillCenter" />
+
+    <com.temi.rhythmgame.SkeletonView
+        android:id="@+id/testSkeleton"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <TextView
+        android:id="@+id/testStatus"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|start"
+        android:layout_margin="12dp"
+        android:background="#CC000000"
+        android:padding="12dp"
+        android:text="카메라 준비 중"
+        android:textColor="#FFFFFF"
+        android:textSize="27sp" />
+
+    <TextView
+        android:id="@+id/fallStatusLegend"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|start"
+        android:layout_margin="12dp"
+        android:background="#CC161824"
+        android:padding="10dp"
+        android:text="NORMAL: 정상\nFALL_SUSPECTED: 낙상 의심\nFALL_CONFIRMED: 낙상 확정\nRECOVERED: 회복\nUNKNOWN: 자세 인식 불가"
+        android:textColor="#FFFFFF"
+        android:textSize="16sp"
+        android:visibility="gone" />
+
+    <Button
+        android:id="@+id/testBack"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_margin="12dp"
+        android:text="← 테스트 메뉴"
+        android:textColor="#FFFFFF"
+        android:backgroundTint="#CC161824"
+        app:strokeWidth="3dp"
+        app:strokeColor="#4DFFFFFF"
+        app:cornerRadius="24dp" />
+</FrameLayout>

@@ -18,6 +18,10 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.TemiRhythmGame">
 
+        <meta-data
+            android:name="com.robotemi.sdk.metadata.SKILL"
+            android:value="@string/app_name" />
+
         <activity
             android:name=".StartActivity"
             android:exported="true"
@@ -26,15 +30,22 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <meta-data
-                android:name="com.robotemi.sdk.metadata.SKILL"
-                android:value="@string/app_name" />
             <!-- 이 화면이 떠있을 때 "헤이 테미" 음성을 테미 클라우드 NLU 대신
                  우리 앱의 AsrListener(onAsrResult)로 라우팅한다. -->
             <meta-data
                 android:name="com.robotemi.sdk.metadata.OVERRIDE_NLU"
                 android:value="true" />
         </activity>
+
+        <activity
+            android:name=".TestMenuActivity"
+            android:exported="false"
+            android:screenOrientation="landscape" />
+
+        <activity
+            android:name=".TestCameraActivity"
+            android:exported="false"
+            android:screenOrientation="landscape" />
 
         <activity
             android:name=".PrepareActivity"
