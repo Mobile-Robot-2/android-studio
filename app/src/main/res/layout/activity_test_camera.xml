@@ -28,11 +28,29 @@
         android:textColor="#FFFFFF"
         android:textSize="27sp" />
 
+    <TextView
+        android:id="@+id/fallStatusLegend"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|start"
+        android:layout_margin="12dp"
+        android:background="#CC161824"
+        android:padding="10dp"
+        android:text="NORMAL: 정상\nFALL_SUSPECTED: 낙상 의심\nFALL_CONFIRMED: 낙상 확정\nRECOVERED: 회복\nUNKNOWN: 자세 인식 불가"
+        android:textColor="#FFFFFF"
+        android:textSize="16sp"
+        android:visibility="gone" />
+
     <Button
         android:id="@+id/testBack"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
         android:layout_margin="12dp"
-        android:text="뒤로" />
+        android:text="← 테스트 메뉴"
+        android:textColor="#FFFFFF"
+        android:backgroundTint="#CC161824"
+        app:strokeWidth="3dp"
+        app:strokeColor="#4DFFFFFF"
+        app:cornerRadius="24dp" />
 </FrameLayout>

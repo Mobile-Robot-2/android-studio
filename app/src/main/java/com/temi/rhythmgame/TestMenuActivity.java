@@ -2,6 +2,8 @@ package com.temi.rhythmgame;
 
 import android.os.Bundle;
 import android.content.Intent;
+import android.graphics.drawable.AnimationDrawable;
+import android.view.View;
 
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -11,6 +13,12 @@ public class TestMenuActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_test_menu);
 
+        View root = findViewById(R.id.testMenuRoot);
+        AnimationDrawable background = (AnimationDrawable) root.getBackground();
+        background.setEnterFadeDuration(2000);
+        background.setExitFadeDuration(4000);
+        background.start();
+        findViewById(R.id.testMenuBack).setOnClickListener(view -> finish());
         findViewById(R.id.fallTestButton).setOnClickListener(view -> openTest("fall"));
         findViewById(R.id.rhythmTestButton).setOnClickListener(view -> openTest("rhythm"));
     }

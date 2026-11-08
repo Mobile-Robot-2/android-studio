@@ -11,6 +11,7 @@ import android.graphics.YuvImage;
 import android.os.Bundle;
 import android.os.SystemClock;
 import android.util.Size;
+import android.view.View;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -60,6 +61,7 @@ public class TestCameraActivity extends AppCompatActivity {
         super.onCreate(state);
         setContentView(R.layout.activity_test_camera);
         mode = "fall".equals(getIntent().getStringExtra("mode")) ? "fall" : "rhythm";
+        findViewById(R.id.fallStatusLegend).setVisibility(mode.equals("fall") ? View.VISIBLE : View.GONE);
         preview = findViewById(R.id.testPreview);
         status = findViewById(R.id.testStatus);
         skeleton = findViewById(R.id.testSkeleton);
