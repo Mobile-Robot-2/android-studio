@@ -50,7 +50,9 @@ public class TestCameraActivity extends AppCompatActivity {
     private final String sessionId = UUID.randomUUID().toString();
     private PreviewView preview;
     private TextView status;
+    private SkeletonView skeleton;
     private String mode;
+    private boolean mirrored;
     private long lastSent;
     private volatile boolean stopped;
 
@@ -60,6 +62,7 @@ public class TestCameraActivity extends AppCompatActivity {
         mode = "fall".equals(getIntent().getStringExtra("mode")) ? "fall" : "rhythm";
         preview = findViewById(R.id.testPreview);
         status = findViewById(R.id.testStatus);
+        skeleton = findViewById(R.id.testSkeleton);
         findViewById(R.id.testBack).setOnClickListener(v -> finish());
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
             startCamera();
@@ -80,13 +83,14 @@ public class TestCameraActivity extends AppCompatActivity {
             if (stopped) return;
             try {
                 ProcessCameraProvider provider = future.get();
-                Preview cameraPreview = new Preview.Builder().build();
+                Preview cameraPreview = new Preview.Builder().setTargetResolution(new Size(640, 480)).build();
                 cameraPreview.setSurfaceProvider(preview.getSurfaceProvider());
                 ImageAnalysis analysis = new ImageAnalysis.Builder().setTargetResolution(new Size(640, 480))
                         .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST).build();
                 analysis.setAnalyzer(executor, this::analyze);
                 CameraSelector selector = provider.hasCamera(CameraSelector.DEFAULT_FRONT_CAMERA)
                         ? CameraSelector.DEFAULT_FRONT_CAMERA : CameraSelector.DEFAULT_BACK_CAMERA;
+                mirrored = selector == CameraSelector.DEFAULT_FRONT_CAMERA;
                 provider.unbindAll();
                 provider.bindToLifecycle(this, selector, cameraPreview, analysis);
             } catch (Exception e) {
@@ -102,7 +106,10 @@ public class TestCameraActivity extends AppCompatActivity {
             lastSent = now;
             try {
                 byte[] bytes = jpeg(image);
-                send(bytes, now);
+                int rotation = image.getImageInfo().getRotationDegrees();
+                int width = rotation == 90 || rotation == 270 ? image.getHeight() : image.getWidth();
+                int height = rotation == 90 || rotation == 270 ? image.getWidth() : image.getHeight();
+                send(bytes, now, width, height);
             } catch (Exception e) {
                 inFlight.set(false);
                 show("영상 처리 오류: " + e.getMessage());
@@ -146,7 +153,7 @@ public class TestCameraActivity extends AppCompatActivity {
         return stream.toByteArray();
     }
 
-    private void send(byte[] jpeg, long started) {
+    private void send(byte[] jpeg, long started, int width, int height) {
         RequestBody body = new MultipartBody.Builder().setType(MultipartBody.FORM)
                 .addFormDataPart("session_id", sessionId)
                 .addFormDataPart("image", "frame.jpg", RequestBody.create(MediaType.parse("image/jpeg"), jpeg))
@@ -155,18 +162,22 @@ public class TestCameraActivity extends AppCompatActivity {
         client.newCall(request).enqueue(new Callback() {
             @Override public void onFailure(@NonNull Call call, @NonNull IOException e) {
                 inFlight.set(false);
+                showPose(null, width, height);
                 show("서버 연결 실패: " + e.getMessage());
             }
             @Override public void onResponse(@NonNull Call call, @NonNull Response response) {
                 try (Response r = response) {
                     if (!r.isSuccessful() || r.body() == null) {
+                        showPose(null, width, height);
                         show("서버 오류: HTTP " + r.code());
                         return;
                     }
                     JSONObject json = new JSONObject(r.body().string());
+                    showPose(json.optJSONArray("landmarks"), width, height);
                     String text = mode.equals("fall") ? fallText(json) : rhythmText(json);
                     show(text + "\n응답: " + (SystemClock.elapsedRealtime() - started) + " ms");
                 } catch (Exception e) {
+                    showPose(null, width, height);
                     show("응답 처리 오류: " + e.getMessage());
                 } finally {
                     inFlight.set(false);
@@ -191,6 +202,12 @@ public class TestCameraActivity extends AppCompatActivity {
 
     private void show(String message) {
         if (!stopped) runOnUiThread(() -> { if (!stopped) status.setText(message); });
+    }
+
+    private void showPose(org.json.JSONArray points, int width, int height) {
+        if (!stopped) runOnUiThread(() -> {
+            if (!stopped) skeleton.setPose(points, width, height, mirrored);
+        });
     }
 
     @Override protected void onDestroy() {

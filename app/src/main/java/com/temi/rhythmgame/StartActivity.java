@@ -53,6 +53,8 @@ public class StartActivity extends BaseActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_start);
+        findViewById(R.id.btnTestMenu).setOnClickListener(v ->
+                startActivity(new Intent(StartActivity.this, TestMenuActivity.class)));
         robotApiClient = new RobotApiClient(ServerConfig.BASE_URL);
         serverHandler = new Handler(Looper.getMainLooper());
 

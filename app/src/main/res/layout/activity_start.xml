@@ -9,9 +9,11 @@
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_height="0dp"
         android:orientation="vertical"
-        android:weightSum="2">
+        android:weightSum="2"
+        app:layout_constraintTop_toBottomOf="@id/btnTestMenu"
+        app:layout_constraintBottom_toBottomOf="parent">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -120,5 +122,13 @@
                 app:cornerRadius="32dp"/>
         </LinearLayout>
     </LinearLayout>
+
+    <Button
+        android:id="@+id/btnTestMenu"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="인식 테스트"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
