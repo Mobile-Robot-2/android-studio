@@ -20,6 +20,7 @@ public class TestMenuActivity extends AppCompatActivity {
         background.start();
         findViewById(R.id.testMenuBack).setOnClickListener(view -> finish());
         findViewById(R.id.fallTestButton).setOnClickListener(view -> openTest("fall"));
+        findViewById(R.id.fallCallTestButton).setOnClickListener(view -> openTest("fall_call"));
         findViewById(R.id.rhythmTestButton).setOnClickListener(view -> openTest("rhythm"));
     }
 
