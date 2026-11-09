@@ -132,7 +132,7 @@ public class MainActivity extends BaseActivity implements
         hideSystemUI();
         setContentView(R.layout.activity_main);
 
-        robotApiClient = new RobotApiClient(ServerConfig.BASE_URL);
+        robotApiClient = new RobotApiClient(this, ServerConfig.BASE_URL);
         commandPrefs = getSharedPreferences("robot_command_state", MODE_PRIVATE);
         lastReceivedCommandId = commandPrefs.getString("last_received_command_id", null);
         lastCompletedCommandId = commandPrefs.getString("last_completed_command_id", null);

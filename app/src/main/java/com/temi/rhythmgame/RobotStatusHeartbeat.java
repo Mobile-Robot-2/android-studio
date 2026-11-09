@@ -1,5 +1,6 @@
 package com.temi.rhythmgame;
 
+import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
@@ -11,7 +12,7 @@ public class RobotStatusHeartbeat {
     private static final String TAG = "RobotStatusHeartbeat";
     private static final long HEARTBEAT_INTERVAL_MS = 2000L;
 
-    private final RobotApiClient apiClient = new RobotApiClient(ServerConfig.BASE_URL);
+    private final RobotApiClient apiClient;
     private final Handler handler = new Handler(Looper.getMainLooper());
 
     private String state;
@@ -29,7 +30,8 @@ public class RobotStatusHeartbeat {
         }
     };
 
-    public RobotStatusHeartbeat(String state, String location) {
+    public RobotStatusHeartbeat(Context context, String state, String location) {
+        this.apiClient = new RobotApiClient(context, ServerConfig.BASE_URL);
         this.state = state;
         this.location = location;
     }

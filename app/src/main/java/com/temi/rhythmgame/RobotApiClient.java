@@ -1,5 +1,6 @@
 package com.temi.rhythmgame;
 
+import android.content.Context;
 import android.net.Uri;
 import android.util.Log;
 
@@ -25,8 +26,10 @@ public class RobotApiClient {
 
     private final OkHttpClient client;
     private final String baseUrl;
+    private final Context context;
 
-    public RobotApiClient(String baseUrl) {
+    public RobotApiClient(Context context, String baseUrl) {
+        this.context = context.getApplicationContext();
         this.client = new OkHttpClient();
         this.baseUrl = baseUrl;
     }
@@ -46,6 +49,15 @@ public class RobotApiClient {
     }
 
     public void postStatus(JSONObject status, JsonCallback callback) {
+        try {
+            String previousError = PatrolFailureStore.lastError(context);
+            if (status.isNull("last_error") && previousError != null) {
+                status.put("last_error", previousError);
+            }
+        } catch (JSONException e) {
+            callback.onFailure(e);
+            return;
+        }
         RequestBody body = RequestBody.create(JSON, status.toString());
         Request request = new Request.Builder()
                 .url(baseUrl + "/robot/status")

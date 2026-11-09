@@ -47,7 +47,7 @@ public class AlarmActivity extends BaseActivity {
         }
 
         robot = Robot.getInstance();
-        heartbeat = new RobotStatusHeartbeat("MOVING_TO_USER", "거실");
+        heartbeat = new RobotStatusHeartbeat(this, "MOVING_TO_USER", "거실");
         tvTimer = findViewById(R.id.tvTimer);
 
         // [추가] 1. 홈 베이스에서 분리되어 어르신이 계신 지정된 장소로 이동

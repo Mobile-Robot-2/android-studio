@@ -80,7 +80,7 @@ public class PrepareActivity extends BaseActivity {
 
         tvCountdown = findViewById(R.id.tvCountdown);
         tvCheckLog  = findViewById(R.id.tvCheckLog);
-        heartbeat = new RobotStatusHeartbeat("READY_FOR_GAME", "거실");
+        heartbeat = new RobotStatusHeartbeat(this, "READY_FOR_GAME", "거실");
 
         scheduleChecks();
         startCountdown();
