@@ -37,8 +37,6 @@ import org.json.JSONObject;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.File;
-import java.io.FileOutputStream;
-import java.nio.charset.StandardCharsets;
 import java.nio.ByteBuffer;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
@@ -83,9 +81,10 @@ public class TestCameraActivity extends AppCompatActivity {
         if (fallCallMode) {
             markFallTime.setVisibility(View.VISIBLE);
             markFallTime.setOnClickListener(v -> {
-                recordEvent("T0_OBSERVER_MARK", SystemClock.elapsedRealtime(), System.currentTimeMillis());
-                markFallTime.setEnabled(false);
-                markFallTime.setText("T0 표시됨");
+                if (recordEvent("T0_OBSERVER_MARK", SystemClock.elapsedRealtime(), System.currentTimeMillis())) {
+                    markFallTime.setEnabled(false);
+                    markFallTime.setText("T0 표시됨");
+                }
             });
         }
         findViewById(R.id.fallStatusLegend).setVisibility(mode.equals("fall") ? View.VISIBLE : View.GONE);
@@ -321,22 +320,22 @@ public class TestCameraActivity extends AppCompatActivity {
         }
     }
 
-    private void recordEvent(String event, long elapsedMillis, long wallMillis) {
+    private boolean recordEvent(String event, long elapsedMillis, long wallMillis) {
         String row = sessionId + "," + event + "," + wallMillis + "," + elapsedMillis + "\n";
         Log.i("FallCallTest", row.trim());
         File dir = getExternalFilesDir(null);
         if (dir == null) {
             Toast.makeText(this, "실험 로그 저장 실패: Logcat을 확인하세요.", Toast.LENGTH_LONG).show();
-            return;
+            return false;
         }
         File file = new File(dir, "fall_call_events.csv");
-        try (FileOutputStream out = new FileOutputStream(file, true)) {
-            if (file.length() == 0) out.write("session_id,event,wall_time_epoch_ms,elapsed_realtime_ms\n".getBytes(StandardCharsets.UTF_8));
-            out.write(row.getBytes(StandardCharsets.UTF_8));
-            out.getFD().sync();
+        try {
+            ExperimentEventWriter.append(file, row);
+            return true;
         } catch (IOException e) {
             Log.e("FallCallTest", "Cannot save event", e);
             Toast.makeText(this, "실험 로그 저장 실패: Logcat을 확인하세요.", Toast.LENGTH_LONG).show();
+            return false;
         }
     }
 
