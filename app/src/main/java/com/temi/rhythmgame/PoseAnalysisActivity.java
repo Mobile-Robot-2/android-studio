@@ -64,7 +64,7 @@ public class PoseAnalysisActivity extends BaseActivity {
         previewView = findViewById(R.id.previewView);
         textStatus = findViewById(R.id.textStatus);
         cameraExecutor = Executors.newSingleThreadExecutor();
-        heartbeat = new RobotStatusHeartbeat("CHECKING_USER", "거실");
+        heartbeat = new RobotStatusHeartbeat(this, "CHECKING_USER", "거실");
 
         Button btnStart = findViewById(R.id.btnStart);
         btnStart.setOnClickListener(v -> {

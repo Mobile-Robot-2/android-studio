@@ -79,7 +79,7 @@ public class MedicationActivity extends BaseActivity {
         CareTaskCoordinator.setBusy(this, "MEDICATION");
 
         robot = Robot.getInstance();
-        heartbeat = new RobotStatusHeartbeat("MOVING_TO_USER", "주방");
+        heartbeat = new RobotStatusHeartbeat(this, "MOVING_TO_USER", "주방");
 
         tvMessage = findViewById(R.id.tvMessage);
         tvTimer = findViewById(R.id.tvTimer);

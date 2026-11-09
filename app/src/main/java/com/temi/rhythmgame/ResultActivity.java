@@ -101,7 +101,7 @@ public class ResultActivity extends BaseActivity {
         }
 
         robot = Robot.getInstance();
-        heartbeat = new RobotStatusHeartbeat("READY_FOR_GAME", "거실");
+        heartbeat = new RobotStatusHeartbeat(this, "READY_FOR_GAME", "거실");
 
         TextView tvLoading = findViewById(R.id.tvLoading);
         ProgressBar progressBar = findViewById(R.id.progressBar);

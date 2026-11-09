@@ -55,7 +55,7 @@ public class StartActivity extends BaseActivity {
         setContentView(R.layout.activity_start);
         findViewById(R.id.btnTestMenu).setOnClickListener(v ->
                 startActivity(new Intent(StartActivity.this, TestMenuActivity.class)));
-        robotApiClient = new RobotApiClient(ServerConfig.BASE_URL);
+        robotApiClient = new RobotApiClient(this, ServerConfig.BASE_URL);
         serverHandler = new Handler(Looper.getMainLooper());
 
         // ⭐️ 배경 애니메이션 실행 코드

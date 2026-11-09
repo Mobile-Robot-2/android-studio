@@ -35,7 +35,7 @@ public class BatteryReturnActivity extends BaseActivity implements Robot.TtsList
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
         robot = Robot.getInstance();
-        heartbeat = new RobotStatusHeartbeat("RETURNING_TO_BASE", "home base");
+        heartbeat = new RobotStatusHeartbeat(this, "RETURNING_TO_BASE", "home base");
 
         // ⭐️ 2. TTS 리스너 등록 (내가 말 끝나는 걸 듣겠다!)
         robot.addTtsListener(this);
